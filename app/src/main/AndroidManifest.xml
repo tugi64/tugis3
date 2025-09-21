@@ -1,27 +1,303 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
-
+    package="com.example.tugis3"
+    platformBuildVersionCode="36"
+    platformBuildVersionName="14"
+    android:versionCode="1"
+    android:versionName="1.0"
+    android:compileSdkVersion="36"
+    android:compileSdkVersionCodename="14">
+    <uses-sdk
+        android:minSdkVersion="24"
+        android:targetSdkVersion="36"/>
+    <supports-gl-texture android:name="GL_OES_compressed_ETC1_RGB8_texture"/>
+    <supports-gl-texture android:name="GL_OES_compressed_paletted_texture"/>
+    <uses-feature
+        android:name="android.hardware.bluetooth_le"
+        android:required="true"/>
+    <uses-feature
+        android:name="android.hardware.nfc"
+        android:required="true"/>
+    <uses-feature
+        android:glEsVersion="0x20000"
+        android:required="true"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.READ_PRIVILEGED_PHONE_STATE"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-permission android:name="android.permission.BLUETOOTH"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <uses-permission android:name="android.permission.CTA_ENABLE_BT"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.WRITE_MEDIA_STORAGE"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.MOUNT_UNMOUNT_FILESYSTEMS"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE"/>
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE"/>
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.GET_TASKS"/>
+    <uses-permission android:name="android.permission.GET_ACCOUNTS"/>
+    <uses-permission android:name="android.permission.USE_CREDENTIALS"/>
+    <uses-permission android:name="android.permission.MANAGE_ACCOUNTS"/>
+    <uses-permission android:name="android.permission.AUTHENTICATE_ACCOUNTS"/>
+    <uses-permission android:name="com.android.launcher.permission.READ_SETTINGS"/>
+    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+    <uses-permission android:name="android.permission.BROADCAST_STICKY"/>
+    <uses-permission android:name="android.permission.WRITE_SETTINGS"/>
+    <uses-permission android:name="android.permission.INTERACT_ACROSS_USERS_FULL"/>
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.NFC"/>
+    <uses-permission android:name="android.permission.ACCESS_MOCK_LOCATION"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.USB_PERMISSION"/>
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false"/>
+    <uses-feature
+        android:name="android.hardware.camera.front"
+        android:required="false"/>
+    <uses-feature
+        android:name="android.hardware.camera.autofocus"
+        android:required="false"/>
+    <uses-feature
+        android:name="android.hardware.camera.flash"
+        android:required="false"/>
+    <uses-feature
+        android:name="android.hardware.screen.landscape"
+        android:required="false"/>
+    <uses-feature
+        android:name="android.hardware.wifi"
+        android:required="false"/>
+    <supports-screens
+        android:anyDensity="true"
+        android:normalScreens="true"
+        android:largeScreens="true"/>
+    <uses-feature
+        android:name="android.hardware.location.network"
+        android:required="false"/>
+    <uses-feature
+        android:name="android.hardware.location.gps"
+        android:required="false"/>
+    <uses-feature
+        android:name="android.hardware.telephony"
+        android:required="false"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <queries>
+        <intent>
+            <action android:name="androidx.camera.extensions.action.VENDOR_ACTION"/>
+        </intent>
+    </queries>
+    <permission
+        android:name="com.example.tugis3.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+        android:protectionLevel="signature"/>
+    <uses-permission android:name="com.example.tugis3.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"/>
     <application
-        android:allowBackup="true"
-        android:dataExtractionRules="@xml/data_extraction_rules"
-        android:fullBackupContent="@xml/backup_rules"
-        android:icon="@mipmap/ic_launcher"
+        android:theme="@style/Theme.Tugis3"
         android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
+        android:icon="@mipmap/ic_launcher"
+        android:name="com.example.tugis3.Tugis3Application"
+        android:launchMode="singleTop"
+        android:allowBackup="false"
+        android:installLocation="internalOnly"
+        android:largeHeap="true"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Tugis3">
+        android:usesCleartextTraffic="true"
+        android:resizeableActivity="true"
+        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+        android:requestLegacyExternalStorage="true">
+        
+        <!-- Ana Activity -->
         <activity
+            android:theme="@style/Theme.Tugis3"
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/Theme.Tugis3">
+            android:configChanges="screenSize|orientation|keyboardHidden">
             <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-    </application>
 
+        <!-- CORS GNSS Ana Navigasyon -->
+        <activity
+            android:theme="@style/Theme.Tugis3"
+            android:name=".ui.navigation.MainNavigationActivity"
+            android:exported="true"
+            android:configChanges="screenSize|orientation|keyboardHidden"/>
+
+        <!-- CORS GNSS Servisleri -->
+        <service
+            android:name=".service.GnssService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+
+        <service
+            android:name=".service.NtripService"
+            android:enabled="true"
+            android:exported="false" />
+
+        <service
+            android:name=".service.DataLoggerService"
+            android:enabled="true"
+            android:exported="false" />
+
+        <!-- CORS GNSS Ana Ekranlar -->
+        <activity
+            android:name=".ui.survey.MainSurveyActivity"
+            android:configChanges="screenSize|orientation|keyboardHidden"/>
+        
+        <activity
+            android:name=".ui.stakeout.MainStakeoutActivity"
+            android:launchMode="singleTask"
+            android:configChanges="screenSize|orientation|keyboardHidden"/>
+
+        <!-- CORS GNSS Ayarlar -->
+        <activity
+            android:name=".ui.settings.RtkMainSettingActivity"
+            android:configChanges="screenSize|orientation|keyboardHidden"/>
+
+        <activity
+            android:name=".ui.settings.CorsConfigurationActivity"
+            android:configChanges="screenSize|orientation|keyboardHidden"/>
+
+        <!-- CORS GNSS Proje Yönetimi -->
+        <activity
+            android:name=".ui.project.ProjectManageActivity"
+            android:configChanges="screenSize|orientation|keyboardHidden"/>
+
+        <activity
+            android:name=".ui.project.ProjectCreateActivity"
+            android:configChanges="screenSize|orientation|keyboardHidden"/>
+
+        <!-- CORS GNSS Veri Yönetimi -->
+        <activity
+            android:name=".ui.data.PointLibraryActivity"
+            android:configChanges="screenSize|orientation|keyboardHidden"/>
+
+        <activity
+            android:name=".ui.data.DataExportActivity"
+            android:configChanges="screenSize|orientation|keyboardHidden"/>
+
+        <!-- CORS GNSS Araçlar -->
+        <activity
+            android:name=".ui.tools.CoordinateTransformActivity"
+            android:configChanges="screenSize|orientation|keyboardHidden"/>
+
+        <activity
+            android:name=".ui.tools.CalculatorActivity"
+            android:configChanges="screenSize|orientation|keyboardHidden"/>
+
+        <!-- CORS GNSS Cihaz Bağlantısı -->
+        <activity
+            android:name=".ui.device.DeviceConnectActivity"
+            android:configChanges="screenSize|orientation|keyboardHidden"/>
+
+        <activity
+            android:name=".ui.device.BluetoothListActivity"
+            android:configChanges="screenSize|orientation|keyboardHidden"/>
+
+        <!-- CORS GNSS Kalibrasyon -->
+        <activity
+            android:name=".ui.calibration.CalibrationActivity"
+            android:configChanges="screenSize|orientation|keyboardHidden"/>
+
+        <!-- CORS GNSS Harita -->
+        <activity
+            android:name=".ui.map.MapActivity"
+            android:configChanges="screenSize|orientation|keyboardHidden"/>
+
+        <!-- CORS GNSS Raporlar -->
+        <activity
+            android:name=".ui.reports.ReportActivity"
+            android:configChanges="screenSize|orientation|keyboardHidden"/>
+
+        <!-- CORS GNSS Yardım -->
+        <activity
+            android:name=".ui.help.HelpActivity"
+            android:configChanges="screenSize|orientation|keyboardHidden"/>
+
+        <!-- CORS GNSS Hakkında -->
+        <activity
+            android:name=".ui.about.AboutActivity"
+            android:configChanges="screenSize|orientation|keyboardHidden"/>
+
+        <!-- Meta Data -->
+        <meta-data
+            android:name="com.google.ar.core"
+            android:value="optional"/>
+        <meta-data
+            android:name="com.google.android.gms.version"
+            android:value="@integer/google_play_services_version"/>
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="YOUR_GOOGLE_MAPS_API_KEY"/>
+        <meta-data
+            android:name="android.max_aspect"
+            android:value="2.1"/>
+
+        <!-- File Provider -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:exported="false"
+            android:authorities="com.example.tugis3"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"/>
+        </provider>
+
+        <!-- Receivers -->
+        <receiver
+            android:name=".receiver.SDCardReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_MOUNTED"/>
+                <action android:name="android.intent.action.MEDIA_EJECT"/>
+                <data android:scheme="file"/>
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".receiver.AutoStartUpReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter android:priority="1000">
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+            </intent-filter>
+        </receiver>
+
+        <!-- Room Database Service -->
+        <service
+            android:name="androidx.room.MultiInstanceInvalidationService"
+            android:exported="false"
+            android:directBootAware="true"/>
+
+        <!-- Startup Provider -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:exported="false"
+            android:authorities="com.example.tugis3.androidx-startup">
+            <meta-data
+                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+                android:value="androidx.startup"/>
+            <meta-data
+                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+                android:value="androidx.startup"/>
+        </provider>
+    </application>
 </manifest>

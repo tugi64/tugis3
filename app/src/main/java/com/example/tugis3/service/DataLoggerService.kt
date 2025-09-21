@@ -1,0 +1,141 @@
+package com.example.tugis3.service
+
+import android.app.Service
+import android.content.Intent
+import android.os.Binder
+import android.os.IBinder
+import com.example.tugis3.data.model.GnssData
+import com.example.tugis3.repository.GnssRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileWriter
+import java.text.SimpleDateFormat
+import java.util.*
+
+class DataLoggerService : Service() {
+    
+    private val binder = DataLoggerServiceBinder()
+    private lateinit var gnssRepository: GnssRepository
+    private var isLogging = false
+    private var logFile: File? = null
+    private var fileWriter: FileWriter? = null
+    
+    inner class DataLoggerServiceBinder : Binder() {
+        fun getService(): DataLoggerService = this@DataLoggerService
+    }
+    
+    override fun onBind(intent: Intent?): IBinder = binder
+    
+    fun startLogging(projectId: String, format: LogFormat = LogFormat.RINEX) {
+        if (isLogging) return
+        
+        try {
+            val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+            val fileName = "gnss_data_${projectId}_${timestamp}.${format.extension}"
+            logFile = File(getExternalFilesDir(null), fileName)
+            fileWriter = FileWriter(logFile)
+            
+            when (format) {
+                LogFormat.RINEX -> writeRinexHeader(projectId)
+                LogFormat.NMEA -> writeNmeaHeader()
+                LogFormat.CSV -> writeCsvHeader()
+            }
+            
+            isLogging = true
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+    
+    fun stopLogging() {
+        if (!isLogging) return
+        
+        try {
+            fileWriter?.close()
+            fileWriter = null
+            isLogging = false
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+    
+    fun logGnssData(data: GnssData, format: LogFormat = LogFormat.RINEX) {
+        if (!isLogging) return
+        
+        try {
+            when (format) {
+                LogFormat.RINEX -> writeRinexData(data)
+                LogFormat.NMEA -> writeNmeaData(data)
+                LogFormat.CSV -> writeCsvData(data)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+    
+    private fun writeRinexHeader(projectId: String) {
+        val date = SimpleDateFormat("dd-MMM-yyyy HH:mm:ss", Locale.US).format(Date())
+        fileWriter?.write("     3.04           OBSERVATION DATA    M (MIXED)           RINEX VERSION / TYPE\n")
+        fileWriter?.write("CORS GNSS Android App                                    $date PGM / RUN BY / DATE\n")
+        fileWriter?.write("CORS GNSS Android App                                    COMMENT\n")
+        fileWriter?.write("$projectId                                                      MARKER NAME\n")
+        fileWriter?.write("                                                            MARKER NUMBER\n")
+        fileWriter?.write("                                                            MARKER TYPE\n")
+        fileWriter?.write("                                                            OBSERVER / AGENCY\n")
+        fileWriter?.write("                                                            REC # / TYPE / VERS\n")
+        fileWriter?.write("                                                            ANT # / TYPE\n")
+        fileWriter?.write("                                                            APPROX POSITION XYZ\n")
+        fileWriter?.write("                                                            ANTENNA: DELTA H/E/N\n")
+        fileWriter?.write("                                                            WAVELENGTH FACT L1/2\n")
+        fileWriter?.write("                                                            # / TYPES OF OBSERV\n")
+        fileWriter?.write("                                                            INTERVAL\n")
+        fileWriter?.write("                                                            TIME OF FIRST OBS\n")
+        fileWriter?.write("                                                            TIME OF LAST OBS\n")
+        fileWriter?.write("                                                            RCV CLOCK OFFS APPL\n")
+        fileWriter?.write("                                                            SYS / PHASE SHIFT\n")
+        fileWriter?.write("                                                            END OF HEADER\n")
+    }
+    
+    private fun writeRinexData(data: GnssData) {
+        val date = SimpleDateFormat("yyyy MM dd HH mm ss", Locale.US).format(Date(data.timestamp))
+        fileWriter?.write("> $date  0  0\n")
+        // Add actual RINEX observation data here
+    }
+    
+    private fun writeNmeaHeader() {
+        fileWriter?.write("# NMEA GNSS Data Log\n")
+        fileWriter?.write("# Generated by CORS GNSS Android App\n")
+        fileWriter?.write("# Timestamp,Latitude,Longitude,Elevation,Accuracy,FixType,Satellites\n")
+    }
+    
+    private fun writeNmeaData(data: GnssData) {
+        val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(data.timestamp))
+        fileWriter?.write("$timestamp,${data.latitude},${data.longitude},${data.elevation},${data.accuracy},${data.fixType},${data.satelliteCount}\n")
+    }
+    
+    private fun writeCsvHeader() {
+        fileWriter?.write("Timestamp,PointName,Latitude,Longitude,Elevation,Accuracy,FixType,Satellites,HDOP,VDOP,PDOP,CorsCorrected\n")
+    }
+    
+    private fun writeCsvData(data: GnssData) {
+        val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(data.timestamp))
+        fileWriter?.write("$timestamp,${data.pointName},${data.latitude},${data.longitude},${data.elevation},${data.accuracy},${data.fixType},${data.satelliteCount},${data.hdop},${data.vdop},${data.pdop},${data.isCorsCorrected}\n")
+    }
+    
+    fun getLogFile(): File? = logFile
+    
+    fun isLogging(): Boolean = isLogging
+    
+    enum class LogFormat(val extension: String) {
+        RINEX("obs"),
+        NMEA("nmea"),
+        CSV("csv")
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        stopLogging()
+    }
+}
