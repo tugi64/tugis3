@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+    <TextView
+        android:id="@+id/tvAngleConverterTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Angle Converter"
+        android:textSize="24sp"
+        android:textStyle="bold" />
+    <EditText
+        android:id="@+id/etInputAngle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Açı Girişi"
+        android:inputType="text"
+        android:layout_marginTop="16dp" />
+    <Button
+        android:id="@+id/btnConvertAngle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Açı Dönüştür"
+        android:layout_marginTop="8dp" />
+    <TextView
+        android:id="@+id/tvConvertedAngle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Dönüştürülmüş açı burada gösterilecek"
+        android:textSize="16sp"
+        android:layout_marginTop="16dp" />
+</LinearLayout>

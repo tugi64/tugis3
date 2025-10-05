@@ -1,0 +1,266 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 6,
+    "identityHash": "e9678bba23cba81f37ed9f7101e79009",
+    "entities": [
+      {
+        "tableName": "projects",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `isActive` INTEGER NOT NULL, `description` TEXT, `ellipsoidName` TEXT, `semiMajorA` REAL, `invFlattening` REAL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isActive",
+            "columnName": "isActive",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "ellipsoidName",
+            "columnName": "ellipsoidName",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "semiMajorA",
+            "columnName": "semiMajorA",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "invFlattening",
+            "columnName": "invFlattening",
+            "affinity": "REAL",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "points",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `projectId` INTEGER NOT NULL, `name` TEXT NOT NULL, `northing` REAL NOT NULL, `easting` REAL NOT NULL, `ellipsoidalHeight` REAL, `orthoHeight` REAL, `latDeg` REAL, `lonDeg` REAL, `fixType` TEXT, `hrms` REAL, `pdop` REAL, `hdop` REAL, `vdop` REAL, `featureCode` TEXT, `description` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "projectId",
+            "columnName": "projectId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "northing",
+            "columnName": "northing",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "easting",
+            "columnName": "easting",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ellipsoidalHeight",
+            "columnName": "ellipsoidalHeight",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "orthoHeight",
+            "columnName": "orthoHeight",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "latDeg",
+            "columnName": "latDeg",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lonDeg",
+            "columnName": "lonDeg",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "fixType",
+            "columnName": "fixType",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "hrms",
+            "columnName": "hrms",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "pdop",
+            "columnName": "pdop",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "hdop",
+            "columnName": "hdop",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "vdop",
+            "columnName": "vdop",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "featureCode",
+            "columnName": "featureCode",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "ntrip_profiles",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `host` TEXT NOT NULL, `port` INTEGER NOT NULL, `mountPoint` TEXT NOT NULL, `username` TEXT, `password` TEXT, `autoConnect` INTEGER NOT NULL, `lastUsed` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "host",
+            "columnName": "host",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "port",
+            "columnName": "port",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mountPoint",
+            "columnName": "mountPoint",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "username",
+            "columnName": "username",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "password",
+            "columnName": "password",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "autoConnect",
+            "columnName": "autoConnect",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastUsed",
+            "columnName": "lastUsed",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'e9678bba23cba81f37ed9f7101e79009')"
+    ]
+  }
+}

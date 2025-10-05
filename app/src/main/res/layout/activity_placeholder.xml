@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/tv_placeholder_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Placeholder"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:paddingBottom="8dp" />
+
+    <TextView
+        android:id="@+id/tv_placeholder_info"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Bu modül için işlevsel ekran burada geliştirilecek. Haritalama için 'Aşağıdaki' düğmeyi kullanabilirsiniz."
+        android:paddingBottom="16dp" />
+
+    <TextView
+        android:id="@+id/tv_last_point"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Son nokta: Yok"
+        android:paddingBottom="8dp" />
+
+    <Button
+        android:id="@+id/btn_add_manual"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Manuel Nokta Ekle" />
+
+    <Button
+        android:id="@+id/btn_save_point"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Son Noktayı Kaydet" />
+
+    <Button
+        android:id="@+id/btn_open_map"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Haritayı Aç (OpenStreetMap)" />
+
+</LinearLayout>

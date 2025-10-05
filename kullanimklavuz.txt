@@ -1,0 +1,748 @@
+ 
+GEOPLUS
+HARİTA İNŞAAT OTOMOTİV
+TEK.CİH.VE MÜH.HİZ.SAN.TİC.LTD.ŞTİ.
+SurPad
+Kullanma Kılavuzu
+ 
+ 
+GEOPLUS
+İNŞAAT OTOMOTİV
+MÜH.HİZ.SAN.TİC.LTD.ŞTİ.	İçindekiler
+Giriş 
+İş Dosyası Oluşturma 
+Bağlantı 
+CORS Gezici Yapılandırma 
+RTK Radyo Sabit Yapılandırma 
+RTK Radyo Gezici Yapılandırma .. ıo
+Statik Yapılandırma . . 11
+Detay Alımı . . 12
+Hızlı Alım . . 12
+Grafik Alım . . 13
+Aplikasyon . . 15
+Nokta Verisi Dışa Aktarımı . . 16
+Nokta Verisi içe Aktarımı 17
+Hat Aplikasyonu . ..18
+Cad Aplikasyonu . ..21
+ 
+Giriş
+Surpad4.0 yazılımı e-Survey firmasının deneyimleriyle geliştirdiği gelişmiş GNSS ölçme ve değerIendirme yazılımıdır. Surpad4.0 programı ile GNSS cihazları kullanımı, coğrafi bilgi sistemleri için veri toplama işlemleri gerçekleştirilir. Yazılım güçlü görsel altlık desteği ve işlevselliği ile kullanıcı dostu arayüze sahiptir. Bu kılavuz SurPad programının tüm fonksiyonları, saha işletim prosedürünü içermektedir.
+SurPad 4.0 programı dört ana menüye sahiptir.
+ 
+ 
+[Proje]	Genel anlanda proje ayarlarının yapıldığı menüdür. Dosya yöneticisi, yeni proje
+oluşturma, koordinat sistemi... gibi ayarların yapıldığı menüdür.
+[Cihaz]	Genel cihaz konfigürasyonu, iletişim methodu seçimi ayarları, cihaz kontrolü ve
+ayarlamalarını içeren münüdür.
+[Ölçüm]	Alım, aplikasyon, yol ve enerji nakil hattı işlemleri için kullanılır.
+[Araçlar]	Çeşitli hesaplama yöntemleri, koordinat dönüşümleri, harici radyo
+yapılandırması işlemlerin gerçekleştirildiği menüdür.
+İş Dosyası Oluşturma
+Surpad arazi yazılımı çalıştırılır. Bu menü içerisinde, proje oluşturma, dosya sistemi yönetimi, koorsinat sistemi ayarları, veri gönderme/alma, sabit noktasının tekrar hesaplanması gibi fonksiyonlar bulunmaktadır.
+Yeni iş oluşturmak için, [Proje] [Proje Bilgisi] [Yeni] işleminden sonra proje ismi verilerek proje oluşturulur. Proje oluşturma işlemi sonrasında, koordinat sistemi menüsü ve son çalışılan koordinat sistem ayarı otomatik olarak gelir. Koordinat sistemi menüsünde [Sistem Seç]  [Öntanımlı Koordinatlar] [Turkey] işleminden sonra, ülkemiz için tanımlı koordinat sistemlerinden seçim yapılır. Böylece proje oluşturma işlemi gerçekleştirilir.
+ 
+ 		Ç—	Öntanımlı Koordinatlar 		Öntanımlı Koordinatlar 
+Koordinat Sistemi	WGS84/TM33
+	Elipsoid Parametreleri	 
+ 
+Geoid Dosyası
+Yerel Ofsetler		Ülke	Tüm
+ 		Ülke	TURKEY
+ 
+No	Koordinat Sistemi	Elipsoid İ
+		No				
+			SWITZERLAND	o
+TUNISIA	o
+TURKEY	O
+UNİTED ARAB EMIRATES o
+UNİTED KINGDOM	O
+VENEZULA	o
+UPS	O
+UTM	o			
+		2
+3
+4
+5
+6
+7
+8
+9
+10
+11	 
+ 
+ 
+NP		 		15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25	ED50/UTM zone 35
+ED50/UTM zone 36
+ED50/UTM zone 37
+ED50/UTM zone 38
+WGS84/TM27
+WGS84/TM30
+WGS84/TM33
+WGS84/TM36
+WGS84/TM39
+WGS84/TM42
+WGS84/TM45	International
+Intemational
+Intemational
+International
+WGS
+WGS 8
+WGS 8
+WGS
+WGS 8
+WGS
+ 
+				NAD83/Alaska (Zone 8)
+ 
+NAD83/Alaska (Zone 9)	GRS 1980
+GRS 1980						
+Veri Gönder	Sistem Seç	Tamam			Tamam	Ayrıntı			Tamam	Ayrıntı
+Bağlantı
+El kontrol ünitesi ile alıcı arasındaki bağlantı için [Cihaz] [İletişim] komutu uygulanır, açılan pencere ile cihaz markası, eSurvey seçilir. Model tanımı olarak RTK seçilir, cihaz modeli ayarlaması yapılmaz. Akıllı sürücü teknolojisi ile cihaz modeli, anten parametresi ve cihaz üzerindeki ek bileşenler otomatik tanınır. [İletişim Modu] kısmından istenilen Bluetooth, Wi-Fi, Seri port seçeneklerinden biri seçilir. Bağlantı yapıldığında ekran üzerindeki alıcı simgesi ve iletişim menü simgesi mavi renk olacaktır.
+SİNGLE
+ 	Uydu Yok
+Test-cors
+Gck.O			İletişim 			 	
+ 	 
+	Gezici	Sabit
+o o
+Mevcut Durum Hazır Modlar
+Sensör Kalibre Cihaz Ayarlar
+Cihaz Kaydı		Cihaz Markası	eSurvey
+Cihaz Türü
+iletişim Modu	Bluetooth  
+Bluetooth Cihaz Listesi		 
+	İletişim	Gezici	Sabit
+0 0 0
+	Statik	Mevcut Durum Hazır Modlar
+  9  
+Cihaz Bilgi	Denetim	Cihaz Ayarlar
+Doğruluğu
+Varsayılan	Konumu	Cihaz Kaydı
+Radyo Ayarları	Güncelle
+O
+Statik
+Cihaz Bilgi 
+Konumu Güncelle					
+			E600351920028	 		
+					
+	Cihaz	9
+Ölçüm		Ara	NFC ile Bağlan	Bağlan			Cihaz	9
+Ölçüm
+	Proje	Araçlar	Proje	Araçlar
+Dikkat: El kontrol ünitesi ve GNSS alıcısı eşleştirmesi bir kere yapıldığında otomatik olarak bağlantı yapılır, her iş başlangıcında işlem tekrarı yapılmasına gerek kalmaz.
+CORS Gezici Yapılandırma
+Cihazı CORS sistemine bağlı gezici olarak yapılandırmak için [Cihaz] [Gezici] işlemi ile gezici yapılandırma ayar penceresi açılacaktır.
+Gezici ayar penceresinden, uydu yükseklik açısı seçilir. Veri bağlantı penceresi ile düzeltme alma yöntemi seçilir. Sim kartınızı GNSS alıcısı içerisine yerleştirdi ise [Alıcı İnternet], El kontrol ünitesinde ise [Kontrol Ünitesi İnternet] seçilir. [Bağlantı Modül, NTRIP seçilir.
+ 
+Ağ Rölesi özelliği ile GNSS alıcısı, CORS üzerinden aldığı düzeltme datasını, gezici olarak ölçü yaparken aynı anda radyo modem ile dağıtımını yapar. Radyo yapılandırma parametresi ile diğer geziciler düzeltme datasına ulaşır. Böylece bir bağlantı ile radyo bağlantısına ulaşan diğer GNSS alıcıları da düzeltme alabilir.
+
+ 
+ 	
+
+[Kaynak Tablosu AI] işlemi ile bağlanmak istediğiniz CORS sisteminin düzeltme yayınları görüntülenir.
+VRSCMRP : GPS+GLONASS, Sanal İstasyon
+Metodu
+FKP RTCM31 : GPS+GLONASS, Alan
+Düzeltme Parametresi Metodu
+RTCM3NET : GPS+GLONASS, Ana-yardımcı
+İstasyon Metodu
+VRSRTCM31 : GPS+GLONASS, Sanal
+İstasyon Metodu
+	 
+	 
+	 
+aRTK Gecihne
+120
+Limiti
+Veri Bağlantısı	Kontrol Ünitesi İntemet  
+Bağlantı Modu	NTRIP )
+CORS Ayarları
+Sunucu Adı	pinteknikl
+Kullanıcı Adı	K0706018401
+Kaynak Noktası Ayarları
+Kaynak Noktası	VRSCMRP
+Kaynak Tablosu AI		aRTK Gecilone
+120
+Limiti
+ 
+Veri Almak
+ 
+ 		Veri
+Ağa 	 	
+			Otomatik Olarak Bağlanma	
+Başla 	Gelişmiş	Kaydet&U gula	Uygula		Başla 	Gelişmiş	Kaydet&U gula	Uygula
+Düzeltme parametresi seçimi ile ekran altında yer alan [Başla] komutu çalıştırılır. Komut ile birlikte "Giriş Başarılı” iletisi görünecektir. Kullanıcı adı, şifreniz hatalı yada süresi dolmuş ise "Kullanıcı Adı, Şifresi
+Hatalı” mesajı görünür.
+
+ 
+aRTK Gecikme
+120
+Limiti
+Veri Bağlantısı	Kontrol Ünitesi İntemet
+Bağlantı Modu	NTRIP )
+CORS Ayarları
+Sunucu Adı	pinteknikl
+Kullanıcı Adı	K0706018401
+Kaynak Noktası Ayarları
+Kaynak Noktası	VRSRTCM31
+Kaynak Tablosu AI
+Veri Almak
+	 
+Ağa 	
+  Başla 	Gelişmiş	gula	Uygula
+	
+İnternet bağlantısı, kullanıcı adı ve şifrenizde herhangi bir sorun yoksa mavi renkli veri akışının oluşması gerekmektedir. Bu mesaj CORS sisteminden düzeltme datasının alıcıya ulaştığını göstermektedir.
+
+RTK Radyo Sabit Yapılandırma
+SİNGLE
+10414-test
+Gck.O
+İletişim
+O
+Statik
+O
+Cihaz Bilgi
+O
+Varsayılan
+Radyo Ayarları		Gezici	Sabit
+O O
+Mevcut Durum Hazır Modlar
+9 O
+Denetim	Cihaz Ayarlar Doğruluğu
+O O
+	Konumu	Cihaz Kaydı
+Güncelle
+9		Sabit	noktası	yaklaşık	Nokta listesine giriş yada
+mevcut sabit noktası seçimi için kullanılır.
+			koordinatlarının GNSS alıcısı tarafından okunması için kullanılır.	
+	Dosya	Cihaz	Ölçüm	Araçlar
+Sabit Ayarları			
+			Baz Koordinat Ayarlan
+Hazır Modlar			Eğilmen Nokiarla Kutulırtn
+Baz Kimliği	1000	Başlangıç Modu		Koordinatlar Türü	Grid Koordinat
+Başlangıç Modu	Bilinen Noktada Kurulum	Herhangi Bir Noktada O
+Kurulum		485068.1578
+RTK Veri Formatı	RTCM3.2	Bilinen Noktada Kurulum	x	4415705.6843
+		z	1127.3931
+Otomatik Başlat	Başlangıç Modu seçeneği, sabit noktanın		
+Statik Veri Kaydet	tanımlanmasında kullanılır. Bu seçenek ile sabit noktasının bilinen koordinatları	Anten Ayarlan	I .56mFaz Merkezi Yüksekliği
+Veri Bağlantısı	Alıcı İnternet	yada	yaklaşık	koordinatlarının		
+Bağlantı Seçenekleri
+Bağlantı Modu	NTRIP
+Ağa Otomatik Olarak Bağlanma
+Ağ Modu	GPRS
+Ağ Sistemi	Otomatik	belirlenmesi işlemi yapılır.		
+A p N Ayarları
+Kaydet&UyguI		Kayıt Et	Tamam
+	Gelişmiş	Uygula
+Sabit noktasının koordinat işlemleri yapıldıktan sonra, [Anten Ayarları] bölümünden sabit anten yüksekliği girişi yapılır.
+
+ 
+Anten Yüksekliği(m)	1 560
+Anten Ölçüm Türü	Eğik Yükseklik Çizgisi
+Anten Faz Yüksekliği	ı .5734
+ 
+Tamam
+	 
+	
+Not: Eğer GNSS alıcısı kurulumunu sehpa ile yapıldı ise yükseklik ölçüsü cihazın iki yanında bulunan çentiklerin ucundan yapılmalıdır ve ölçülen yükseklik [Eğik Yükseklik Çizgisi] seçimi ile yapılmalıdır. Jalon üzerinde ise [Jalon Yüksekliği] seçimi uygulanmalıdır.
+
+Anten yükseklik girişi sonrasında [Tamam] komutu ile [Sabit Ayarları] penceresine dönüş sağlanır. [RTK Veri Formatı] RTCM3.2 seçilir, eğer sabit noktasında statik gözlem de yapılacaksa [Otomatik Başlat] ve [Statik Veri Kaydet] seçeneklerinin butonları açılır, nokta adı ve veri toplama aralığı ayarları yapılar. Bu işlem ile RTK sabit yayını başladığında aynı zamanda statik veri kaydı da başlar, [Bilinen Nokta Kurulum] menüsünde girilen yükseklik bilgileri ham data içerisine de yazılır.
+
+ 
+Hazır Modlar
+Baz Kimliği	1000
+Başlangıç Modu	Bilinen Noktada Kurulum
+RTK Veri Formatı	RTCM3.2 )
+Otomatik Başlat
+Statik Veri Kaydet
+Adı	F163
+Toplama Aralığı	İHZ )
+Veri Bağlantısı	Dahili Radyo
+Kanal
+Frekans	462.5
+
+
+Gelişmiş	 	Uygula
+	
+
+RTK Veri Formatı
+RTCM3	O
+CMR
+CMR+	o DGPS	O
+RTCM32
+
+
+	
+
+ 
+Alıcı İnternet	O
+Harici Radyo	o
+Dahili Radyo
+WlF1-Harici Radyo	o
+
+
+eSurvey GNSS alıcılarında sekiz kanal bulunmaktadır, yedi kanal sabit frekanslıdır fakat 8.
+kanal ayarlanabilir olup istenilen frekans ayarlanabilir.
+Radyo kanal ve frekans ayarlarımalarından sonra [Uygula] komutu ile GNSS alıcısı RTK sabit yayını başlatır.
+ 
+ 
+RTK Radyo Gezici Yapılandırma
+Cihazı gezici olarak yapılandırmak için [Cihaz] [Gezici] işlemi ile gezici yapılandırma ayar penceresi açılacaktır. Ayar penceresinde sabit GNSS alıcısında girilen frekans ve protokol değerleriyle aynı olacak seçildikten sonra [Uygula] işlemi gerçekleştirilmesi yeterlidir. Gezici GNSS alıcısı için RTK veri formatı seçmeye gerek yoktur, düzeltme veri formatı otomatik tanınır.
+ 
+Dikkat: GNSS alıcısı ayar penceresinde görünen XTRa ve aRTK ibareleri düzeltme datanızda oluşacak aksaklıklar için geliştirilmiş teknolojilerdir. Trimble anakartlı cihazlarda XT Ra olarak görünür, düzeltme datası kesilse dahi 10 sn cihaz fix çözümde ölçü yapar.
+aRTK teknolojisi ise Hemisphere GNSS tarafından geliştirilen, L-Band ile birleşik çalışan ve düzeltme datanız kaybolduğunda 2 dakika fix ölçüye olanak sağlayan teknolojidir.
+Detaylı Bilgi için www.pinteknik.com.tr/blog/ adresini ziyaret ediniz.
+Statik Yapılandırma
+GNSS alıcısını statik veri kaydında kullanmak için [Cihaz] [Statik] komutu uygulanır. Açılan pencere ile nokta numarası, yükseklik açısı, veri toplama aralığı ve alıcı yükseklik bilgileri girilerek [Uygula] komutu çalıştırılır, kayıt başlar.
+
+ 
+Seçenekler Ayarlar
+Adı	Fi 630344
+PDOP Limiti	15.0
+Yükseldik Açısı	10
+Toplama Aralığı	ı HZ
+Statik Veri Otomatik Kayıt
+Anten Ayarları
+Anten Yüksekliği	1.56
+Anten Ölçüm Türü	Ölçüm Hattından YüksekliğiEğim
+Anten Faz Yüksekliği	ı .5734
+
+
+Gelişmiş	Kaydet&UyguI	Uygula
+	
+Toplama Aralığı 
+60$	o
+30$	O 15$	o ıos	O 53	o 2s	O
+ı HZ 2HZ	o
+5HZ	O
+	
+Not: HZ kısaltması saniye de tekrarlama sayısını gösterir.
+
+		
+Not: Eğer GNSS alıcısı kurulumunu sehpa ile yapıldı ise yükseklik ölçüsü cihazın iki yanında bulunan çentiklerin ucundan yapılmalıdır ve ölçülen yükseklik [Ölçüm Hattından Eğim Yüksekliği] seçimi ile yapılmalıdır.
+Jalon üzerinde ise [Cihazın Altından Yükseklik] seçimi uygulanmalıdır.
+
+	
+	Anten Ölçüm Türü 
+	Faz Merkezinden ölçülen
+Yükseklik
+Ölçüm Hattından Eğim Yüksekliği
+Ölçüm Hattından Yükseklik
+Altimetri Parçasından Eğim Yüksekliği
+Cihazın Altından Yükseklik	O
+O
+O
+O
+	
+ 
+	 	 
+Eğik Ölçü Hattı
+Detay Alımı
+Hızlı Alım
+[Hızlı Alım] fonksiyonu arka plan grafik ekran barındırmayan, sadeleştirilmiş alım menüsüdür.   Alım] işlemi uygulanır.
+Hatalar
+Uydu Durumu
+GNSS Alıcısı Batarya Durumu
+Coğrafi Koordinatlar
+Nokta Numarası
+Detay Kodu
+Jalon Yüksekliği
+Alım Butonu
+
+Hassasiyet ayarlarının üzerinde oluşan değerler için alım anında program uyarı verir.
+Uyarı!
+Cihazı Düzeçleyin veya Hassasiyet Ayarlarını Kontrol edin...
+Bu Alım İçin Daha Fazla Uyarı Yok
+	İptal	Tamam
+
+	
+ 
+Eğim Ölçüm	Devre Dışı
+Çözüm Durumu
+HRMS Limit	0.05
+VRMS Limit	0.1
+PDOP Limit	3.0
+Gecikme Limiti
+Aynı İsim Kullanımı
+Nokta Adı Artışı	1
+Varsayılan Kod	Son Nokta İle Aynı
+Oturum Süresi	1
+Varsayılan
+
+
+
+
+
+Konfigürasyonlar	Tamam
+
+IMU/EIektronik Düzeç
+Durumu
+Nokta Kayıt Modu
+Hata Sınırları
+PDOP Sınırı
+Düzeltme Geçerliliği
+Epok Sayısı
+Grafik Alım
+[Grafik Alım] fonksiyonu arka planda grafik ekran, map altlığı barındıran, cad çizimleri ve hesaplamalarının yapıldığı gelişmiş alım menüsüdür.   Alım] işlemi uygulanır.
+ 
+Hatalar
+Çözüm Durumu
+	Flx	H:O.003	11
+ç- I İğ Gckl
+	Düzeltme Datası Hızı	I v:o.003	23
+KG ,f/
+4
+	Kare	Hat	oklu iz ı
+Dikdört en Dikdörtgen	ok en
+Merkezi
+- 1055.
+Daire 2P	Daire 3P	Ya
+Tarhan
+Apt,)
+Nokta	oklu E" ri	Default CAD Seçenekleri
+1077. cadd
+Araç Çubuğu
+Araç Çubuğu
+Aç/Kapa
+	Adı:Pt1	z:1 131.004
+Y:485069.253
+	Bilgi Çubuğu	Anten Y:2m+0.07m	Baz Msf.:O.329
+	Ekran Bilgisi	Ekran Bilgisi
+	HIZLI	BİLGİ ÇUBUĞU	ARAÇ	HIZLI	BİLGİ ÇUBUĞU	ARAÇ
+	ÇUBUKLARI	ÇUBUKLARI
+Uydu Durumu
+GNSS Alıcısı Batarya Durumu
+Standart
+Epoklu
+Hızlı
+Otomatik
+Alım Modu
+Nokta Listesi
+Ayarlar
+Alım Butonu
+			HIZLI	BİLGİ ÇUBUĞU	ARAÇ
+ÇUBUKLARI
+Öğeyi Görüntüle	Seçenekler	Öğeyi Görüntüle	Seçenekler	Çözüm Durumu	FiX )
+	Eğim Ölçüm	Mevcut Konum	Adı	Boylam (Y)	HRMS Limit	0.05
+	Tam Harita	Ekran Üzerinden Ölçüm	z	Enlem (X)	VRMS Limit	0.1
+[9	Haritayı Değiştir	CAD Yazı	x	Yükseklik (Z)	PDOP Limit	30 )
+	Anten Ayarlan	Koordinat
+Dönüştür		Anten Y	Gecikme Limiti	5
+	Ekran Ölçüm	Çevre Ve Alan	Kod	İleri azimut	Aynı İsim Kullanımı	
+	Haritayı
+Otomatik
+Merkezle
+Otomatik	q Statik Kayıt
+Konumu	Ölçüm Modu	HIZ
+Zaman	Girilen Son Noktaya Odaklan	
+A	Ölçekleme	Güncelle
+Hesap Makinesi
+Ters Koordinat
+Hat ve Açı ile Koordinat vektör		Baz Msf.
+Nokta Msf.
+Yatay Msf.
+Kot Farkı	Nokta Adı
+Nokta Adı Artışı	pti
+1
+					Varsayılan Kod	Son Nokta ile Aynı
+Oturum Süresi	3
+VARSAYILAN	TAMAM	VARSAYILAN	TAMAM		VARSAYILAN	TAMAM
+Ekran Bilgisi
+ 
+[Ayarlar] @ butonu ile alım modlarının ayarları yönetilir. Bu sayede her alım modü için ayrı menü stili oluşturabilir. Bilgi çubuğu üzerinde görünmesi istenilen bilgiler yada araç çubuğunda bulunan özellikler kullanıcı isteğine göre özelleştirilebilir.
+Alım modlarının detaylı açıklamaları aşağıda belirtilmiştir.
+Standart [Standart] alım modunda çalışırken, nokta kaydından önce koordinat değerleri, hata oranları gibi noktaya ait tüm detaylar gözlemlenir.
+[Tamam] seçeneği ile kayıt işlemi sonlandırılır.
+[Fotoğraf ve Kroki] seçeneği ile noktaya fotoğraf ataması yapılabilir.
+Ekran üzerinden not yada şekil çizim seçenekleri kullanılabilir.
+[Epoklu] alım modunda, noktaya ait koordinat değerleri gözlemlenir. Ölçü sırasında oluşan hatalar, her epoktaki sapmalar grafik olarak gözlemlenir. Yandaki şekilde görüldüğü üzere, 10 epok okunacak noktanın 4 okuması tamamlanmış ve okumaların birbirinden farkı 1 cm altında kalmıştır. Epok sayımı tamamlanması ardından, nokta hatalarının göründüğü kayıt ekranı gelir [Tamam] seçeneği ile nokta kaydı tamamlanır. Bu ölçü sonunda epoklar arası farklar, uydu bilgilerinin kaydedildiği bir ölçüm raporu kaydı gerçekleşir.
+[Hızlı] alım modü ile çalışırken herhangi bir pencere değişimi olmaz. Kullanıcının nokta numarası ve detay koduna müdahele edebileceği butonlar belirir. Alım butonuna basıldığında nokta ölçüsü ve kaydı yapılır, herhangi bir onay penceresi görünmez.
+[Otomatik] alım modü ile belirli aralık yada mesafelerde alım yapmak için kullanılan moddur. Ölçü sırasında herhangi bir pencere açılmaz, belirlenen kriterlere göre alım işlemi okuma butonu ile başlar, durdurmak yada duraklatmak ve tekrar başlamak için ekranın üst kısmında bulunan butonlar kullanılır.
+Mesafe yada zaman kriteri ayarı için @ butonu kullanılır.
+ 
+Nokta Adı
+Anten Ayarlan Detay Bilgileri
+x
+z
+HRMS
+VRMS
+Fotoğraf Ve Kroki
+FIX az Gckl
+«Kez1II,Sayımlar4/I
+Adı:3
+Y:485105.582
+FIX
+Gckl
+Adı:6
+Kod:
+5
+2m,JaIon Yüksekliği
+«5/5»veri
+(14/22)Fix
+485105.875
+4415702.127
+1115.98
+0.004
+0.005
+1
+Tamam
+H:O.0036	13 v:o.0040 	19
+x:4415704.117 z-1115.872
+H:O.004	14 v:o.004 	24
+ş
+Y:485106.841 z:1116.288
+Anten Y:2m40.07m
+ 
+Durakl	Durdur	4 at
+(3
+ 
+rcj s
+Adı:Ptı
+	5707.124	Y:485070.085
+	Kod:	öl üm Modu:Otomatik
+Aplikasyon
+Aplikasyon işlemleri için [Ölçüm] -»[Nokta Aplikasyonu] işlemi uygulanır.
+Çözüm Durumu
+GNSS Alıcısı Batarya Durumu
+Düzeltme Datası Hızı
+Araç Çubuğu
+Ayarlar
+Araç çubuğu ve bilgi çubuğu ekranları kullanıcı tarafından özelleştirilebilir ekran bölümleridir. Ayarlar @ butonu ile özelleştirme seçenekleri düzenlenir.
+Nokta Verisi Dışa Aktarımı
+Nokta dosyası aktarımı için [Dosya] [Veri Gönder] işlemi uygulanır. Dosya formatı seçilerek [Veri Gönder] işlemi uygulanır, dosyanın kaydedileceği dizin seçenekleri seçilerek onaylanır. Paylaş seçeneği ile el kontrol ünitesine yüklediğiniz veri paylaşım, mail programlarıyla direkt olarak veriler gönderilebilir.
+
+	 		
+ 0 0
+Dosyaları	Veritabanı	Koordinat
+	Yönet	Sistemi
+Nokta Kalibre Nokta Listesi
+O
+	Barkod	Bulut Ayarları
+Yazılım
+Güncelleme	 
+	O
+Yazılım Ayarları
+	Dosya	Cihaz	Olçüm	Araçlar
+	 
+Uyarı!
+Veri Gönderme Başarılı
+Kapat	Paylaş
+Dosya Formatı	
+ 
+TEK.ciH VE 
+Nokta Verisi içe Aktarımı
+Surpad arazi yazılımına nokta dosyası yüklemek için [Dosya] [Nokta Listesi] işlemi uygulanır, açılan pencerede [Ekle] komutu ile el ile koordinat girişi yapılır. Bilgisayarınızda oluştuulmuş dosyayı, [Veri AI] komutu ile içeri aktar
+Yok
+	Uydu 
+20200512
+Gck.O			 
+ 0
+Dosyaları 	Veritabanı	Koordinat
+	Yönet	Sistemi
+ 
+O O
+	Barkod	Bulut Ayarları	Yazılım
+Ayarları
+Yazılım
+Güncelleme		 
+			İsim 	Y X 	Z Enlem (Y) Boylam (X) Yükseklik
+		
+9
+	Dosya	Cihaz	Ölçüm	Araçlar		Ekle	Düzenle 	 	Veri AI
+Dosya Formatı
+Yerel Koordinat
+O
+Formatı(.csvldatltxt)
+COT Formatı(.cot)	O
+CASS Formatı(.dat)	o
+Autocad Formatl(.dxf) o
+Google Earth Dosya	O
+Formatl(.kml)
+NETCAD formatı(.ncn) 9
+PXY file(.pxy)	o
+Carlson Koordinat
+Dosyası(.crd)
+Hat Aplikasyonu
+ 
+
+11:43	Hat Listesi	
+No Hat İsmi Başlangıç Km 	Uzunluk	Semt Açısı
+ı 	Ptı_Pt2 	0.ooo	5.678	209029'08.9473”
+
+Ekle	Düzenle	Sil	Tamam	
+
+	
+Hat	listesi ekranı önünüze gelecektir. Daha önce
+tanımladığınız hatlar var ise bu ekrandan takip edilebilir.
+Yeni hat tanımlamak için "Ekle”
+Varolan bir hattı düzenlemek için	Düzenle”
+Varolan bir hattı silmek için "Sil”
+Seçenekleri kullanılmalıdır.
+Yeni bir hat tanımlamak için I'Ekle” seçeneği tıklanır.
+
+
+
+11:44
+Ç— 
+İsim
+	Kilometre Gir	5.678
+	Giriş Tipi	Başlangıç Noktası NoktasıBitiş
+Başlangıç Noktasını Ayarla
+Nokta Adı
+x
+z
+Bitiş Noktasını Ayarla
+Nokta Adı
+ 
+ 
+	
+Açılan Ekranda ;
+Hatta özel bir isim verilebilir veya yazılım otomatik seçer.
+Eğer bir başlangıç km'si var ise "Kilometre Gir” bölümünden başlangıç km tanımlanabilir.
+Başlangıç ve Bitiş Noktası Ayarla kısımların da ;
+	Konum oku	Nokta Listesi
+Seçeneklerinden başlangıç ve bitiş noktaları seçilir ve Tamam tıklanır.
+
+11:45
+Aplikasyon Ayarları
+	Aplikasyon Ayarları ;
+Eğer Hatta özel bir aralık tanımlanacak ise veya belli bir metrajda bölmek isteniyorsa
+"Noktaları ve çizgileri Kullan” Aktif edilir.
+"Kesitli Eğim” seçeneği ise Başlangıç noktasından bitiş noktasına belli bir eğim de gitmek isteniyorsa % olarak eğim değeri girilmelidir.
+	Noktaları veya Çizgileri Kullan	D
+Kesitli Eğim (%)		
+Tamam 		
+ 		
+
+11:45
+Ç— 
+ 
+Otomatik En yakın Nokta Aplikasyonu
+Kilometre
+	Toplam Uzunluk	o.ooo«.678
+	Hesaplama Modu	Tam Sayı Mesafe Modu
+	Böl (m)	5
+ 
+
+	
+"Otomatik en yakın nokta aplikasyonu” aktif edilirse seçilen aralıkta oluşturulan ara noktalara göre en yakındaki nokta otomatik seçilir ve aplikasyon işlemi başlatılır.
+"Kilometre” bölümene bir başlangıç km tanımlanabilir.
+"Hesaplama Modu” seçenekleri ise
+Tam Sayı Modu Hattı seçim kadar eşit böler
+Tam Sayı Mesafe Modu -Hattı seçilen mesafeye göre böler
+Özel Kilometre Ofseti km ve offset girilir.
+
+Hedef:Pt1_Pt2	z:1 129.939
+Km:2.861	Gzh  
+ı . Nk. Km:2.861 2. Nk. Km:2.817 Kot Farkı:-3.55
+ 
+"Hedef:Pt1 Pt2” Hat İsmi
+"Km:2.861” Güncel Kilometre bilgisi
+”Gzh Ofset” Hatta olan ofset değeri sol veya sağ olarak konuma göre gösterilir ve sıfıra ne kadar yakın ise hattı üzerinde olundu bilgisi burdan takip edilir.
+"Kot Farkı”	Başlangıç ve bitiş noktalarının kot değerlerine göre enterpolasyon yaparak yazılım yükseklik bilgisi verecektir.
+"1.Nk.Km” ve "2 Nk.Km” başlangıç veya bitiş noktalarından mesafemizi gösterir.
+Hedef:Ptı _Pt2	z:1129.939
+Km:2.861	Gzh 
+ı. Nk. Km:2.861 2. Nk. Km:2.817 Kot Farkı:-3.55
+ 	
+Hat bölünmüş ise noktalar arasında ileri geri yaparak seçim yapılır ve aplike edilecek hat bölümü seçilebilir.
+
+ 	
+Aplikasyon aralaığı seçeme menüsü
+Hat Seçim listesi
+
+Cad Aplikasyonu
+ 	
+ölçüm menüsünde Cad Aplikasyonu	 
+Aplikasyonu	Seçilir.
+
+	
+Veri	izim	öl üm	Ara lar
+
+ 	
+"Veri” dxf,dwg ve xml formatlarında dosya aktarımına tabaka yönetimi ve nokta sitili menüsüne ulaşılabilir.
+
+
+14:59	 
+3D	 
+7 
+3m
+ 
+Veri	Çizim	Ölçüm	Araçlar
+		
+	
+	
+Katman	DXF
+Veri Al	Veri
+Gönder	Nokta Stili	
+Veri		Çizim	ölçüm	Araçlar
+
+	
+Çizim dosyalarını içeri veya dışarıya aktarımını "Veri AI” veya
+"Veri Gönder” bölümlerinden yapabilirsiniz.
+
+ 	
+Nokta	Hat	Çoklu Çizgi	Çoklu Eğri	 
+Yay	Çokgen
+Veri		Çizim	Ölçüm		Araçlar
+
+
+14:59	 
+3D	3m
+7 
+ 
+Çoklu
+Nokta	Hat	Çoklu Eğri Yay	Çokgen
+Çizgi
+	Veri	Çizim	Ölçüm	Araçlar
+ 
+	
+	
+"Çizim” menüsünden birçok cad çizim fonksiyonunu destekler seçimimze göre ölçme yazılımını yönlendirecektir.
+
+
+15:00
+CAD
+3D	 
+3m
+7 
+ 
+Kesişim- Kesişim - Kesişim - Ofset - Ofset -	Böl-
+Mesafe 4 Nokta Eğri	Dik	Paralel Parça
+ 
+	Veri	Çizim	Ölçüm	Araçlar
+
+	
+Kesişim Mesafe	Kesişim 4 Nokta	Kesişim Eğri	Ofset - Ofset Dik Paralel	1
+ 
+ 
+Böl -
+Parça
+Veri		0
+Çizim	ölçüm	Araçlar
+
+	
+"Ölçüm” menüsünden birçok cad hesaplama fonksiyonunu destekler seçiminize göre ölçme yazılımını yönlendirecektir.
+
+	
+Sil	Açı	 
+ 
+Mesafe	Alan	
+Veri		0
+Çizim	ölçüm	Araçlar
+
+"Araçlar” menüsünden Açı,Mesafe ve Alan sorgulama işlemleri yapılabilir.
+"Sil” seçeneği çizim ve hesaplama işlemlerini silecekir.
+

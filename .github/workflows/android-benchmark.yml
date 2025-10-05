@@ -1,0 +1,19 @@
+# Devre dışı: Macrobenchmark / baselineprofile modülleri projeden çıkarıldı. Bu workflow tetiklense bile job çalışmaz.
+name: Android Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      startupMode:
+        description: "Startup mode (COLD / WARM)"
+        required: false
+        default: "COLD"
+
+jobs:
+  macrobenchmark:
+    if: false  # <--- devre dışı
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: (Disabled) Checkout
+        run: echo "Benchmark workflow devre dışı. Eski adımlar çalıştırılmıyor."

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_project"
+        android:icon="@drawable/ic_project"
+        android:title="Project" />
+    <item
+        android:id="@+id/nav_device"
+        android:icon="@drawable/ic_device"
+        android:title="Device" />
+    <item
+        android:id="@+id/nav_survey"
+        android:icon="@drawable/ic_survey"
+        android:title="Survey" />
+    <item
+        android:id="@+id/nav_tools"
+        android:icon="@drawable/ic_tools"
+        android:title="Tools" />
+</menu>
+

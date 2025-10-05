@@ -1,0 +1,51 @@
+build:
+  maxIssues: 10
+  excludeCorrectable: false
+
+config:
+  validation: true
+
+processors:
+  active: true
+
+console-reports:
+  active: true
+  exclude:
+    - 'ProjectStatisticsReport'
+    - 'ComplexityReport'
+
+output-reports:
+  active: false
+
+style:
+  MagicNumber:
+    active: true
+    ignoreNumbers: [-1,0,1,2]
+  WildcardImport:
+    active: true
+  MaxLineLength:
+    active: true
+    maxLineLength: 140
+  UnusedPrivateMember:
+    active: true
+
+complexity:
+  LongMethod:
+    active: true
+    threshold: 60
+  TooManyFunctions:
+    active: false
+
+naming:
+  FunctionMaxLength:
+    active: false
+
+coroutines:
+  GlobalCoroutineUsage:
+    active: true
+
+kotlin:
+  comments:
+    AbsentOrWrongFileLicense:
+      active: false
+

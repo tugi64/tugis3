@@ -1,41 +1,30 @@
 package com.example.tugis3
 
 import android.app.Application
-import androidx.room.Room
-import com.example.tugis3.database.AppDatabase
-import com.example.tugis3.repository.CorsRepository
-import com.example.tugis3.repository.GnssRepository
-import com.example.tugis3.repository.ProjectRepository
+import dagger.hilt.android.HiltAndroidApp
+import com.example.tugis3.util.crash.CrashLogger
 
+@HiltAndroidApp
 class Tugis3Application : Application() {
-    
-    // Database
-    lateinit var database: AppDatabase
-        private set
-    
-    // Repositories
-    lateinit var corsRepository: CorsRepository
-        private set
-    
-    lateinit var gnssRepository: GnssRepository
-        private set
-    
-    lateinit var projectRepository: ProjectRepository
-        private set
-    
+
+    companion object {
+        @Volatile lateinit var appContext: Application
+            private set
+    }
+
     override fun onCreate() {
         super.onCreate()
-        
-        // Initialize database
-        database = Room.databaseBuilder(
-            applicationContext,
-            AppDatabase::class.java,
-            "tugis3_database"
-        ).build()
-        
-        // Initialize repositories
-        corsRepository = CorsRepository(database.corsDao())
-        gnssRepository = GnssRepository(database.gnssDataDao())
-        projectRepository = ProjectRepository(database.projectDao())
+        appContext = this
+        // Global crash yakalama
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { t, e ->
+            try {
+                CrashLogger.logException(applicationContext, e)
+            } catch (_: Exception) {}
+            // Önce bizim log, sonra eski handler (eğer null değilse)
+            previous?.uncaughtException(t, e)
+        }
+        // Uygulama başlangıç ayarları
+        // Repository'ler Hilt tarafından otomatik olarak yönetilecek
     }
 }

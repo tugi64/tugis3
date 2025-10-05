@@ -8,28 +8,28 @@ import kotlinx.coroutines.flow.Flow
 interface CorsDao {
     @Query("SELECT * FROM cors_stations ORDER BY name ASC")
     fun getAllStations(): Flow<List<CorsStation>>
-    
+
     @Query("SELECT * FROM cors_stations WHERE isActive = 1")
     fun getActiveStations(): Flow<List<CorsStation>>
-    
+
     @Query("SELECT * FROM cors_stations WHERE id = :id")
     suspend fun getStationById(id: String): CorsStation?
-    
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertStation(station: CorsStation)
-    
+    suspend fun insertStation(station: CorsStation): Long
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertStations(stations: List<CorsStation>)
-    
+
     @Update
-    suspend fun updateStation(station: CorsStation)
-    
+    suspend fun updateStation(station: CorsStation): Int
+
     @Delete
-    suspend fun deleteStation(station: CorsStation)
-    
+    suspend fun deleteStation(station: CorsStation): Int
+
     @Query("DELETE FROM cors_stations WHERE id = :id")
-    suspend fun deleteStationById(id: String)
-    
+    suspend fun deleteStationById(id: String): Int
+
     @Query("UPDATE cors_stations SET isActive = :isActive WHERE id = :id")
-    suspend fun updateStationStatus(id: String, isActive: Boolean)
+    suspend fun updateStationStatus(id: String, isActive: Boolean): Int
 }

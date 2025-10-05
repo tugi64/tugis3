@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+    <TextView
+        android:id="@+id/tvLocalizationTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Localization"
+        android:textSize="24sp"
+        android:textStyle="bold" />
+    <EditText
+        android:id="@+id/etLocalX"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Yerel X"
+        android:inputType="numberDecimal"
+        android:layout_marginTop="16dp" />
+    <EditText
+        android:id="@+id/etLocalY"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Yerel Y"
+        android:inputType="numberDecimal"
+        android:layout_marginTop="8dp" />
+    <EditText
+        android:id="@+id/etLocalH"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Yerel H"
+        android:inputType="numberDecimal"
+        android:layout_marginTop="8dp" />
+    <EditText
+        android:id="@+id/etBLH"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="BLH (Geodetik)"
+        android:inputType="text"
+        android:layout_marginTop="8dp" />
+    <Button
+        android:id="@+id/btnAddLocalization"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Dönüşüm Noktası Ekle"
+        android:layout_marginTop="16dp" />
+    <Button
+        android:id="@+id/btnCalculateLocalization"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Hesapla ve Uygula"
+        android:layout_marginTop="8dp" />
+    <TextView
+        android:id="@+id/tvLocalizationResult"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Sonuçlar burada gösterilecek"
+        android:textSize="16sp"
+        android:layout_marginTop="16dp" />
+</LinearLayout>

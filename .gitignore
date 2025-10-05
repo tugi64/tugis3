@@ -13,3 +13,13 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Ignore gradle wrapper logs
+.gradle/
+
+# Ignore Android Studio logs and settings
+.idea/
+.idea/*
+
+# Ignore build output
+/app/build/

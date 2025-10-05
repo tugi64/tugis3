@@ -31,7 +31,7 @@ fun BluetoothListScreen() {
     ) {
         Text(
             text = "Bluetooth Devices",
-            style = MaterialTheme.typography(headlineMedium),
+            style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(16.dp))

@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.example.tugis3.ui.survey
 
 import android.os.Bundle
@@ -11,6 +13,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.tugis3.ui.theme.Tugis3Theme
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Satellite
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.ZoomIn
+import androidx.compose.material.icons.filled.ZoomOut
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Timeline
+import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.PlayArrow
 
 class MainSurveyActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

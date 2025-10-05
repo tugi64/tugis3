@@ -1,0 +1,1212 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 27,
+    "identityHash": "798d10a2c633eef77e51d988fa5032af",
+    "entities": [
+      {
+        "tableName": "projects",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `isActive` INTEGER NOT NULL, `description` TEXT, `ellipsoidName` TEXT, `semiMajorA` REAL, `invFlattening` REAL, `utmZone` INTEGER, `utmNorthHemisphere` INTEGER NOT NULL, `epsgCode` INTEGER, `projectionType` TEXT, `projCentralMeridianDeg` REAL, `projFalseNorthing` REAL, `projFalseEasting` REAL, `projScaleFactor` REAL, `projLatOrigin` REAL, `projStdParallel1` REAL, `projStdParallel2` REAL, `locScale` REAL, `locRotRad` REAL, `locTx` REAL, `locTy` REAL, `locPointCount` INTEGER, `locLastSolvedAt` INTEGER)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isActive",
+            "columnName": "isActive",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "ellipsoidName",
+            "columnName": "ellipsoidName",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "semiMajorA",
+            "columnName": "semiMajorA",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "invFlattening",
+            "columnName": "invFlattening",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "utmZone",
+            "columnName": "utmZone",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "utmNorthHemisphere",
+            "columnName": "utmNorthHemisphere",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "epsgCode",
+            "columnName": "epsgCode",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "projectionType",
+            "columnName": "projectionType",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "projCentralMeridianDeg",
+            "columnName": "projCentralMeridianDeg",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "projFalseNorthing",
+            "columnName": "projFalseNorthing",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "projFalseEasting",
+            "columnName": "projFalseEasting",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "projScaleFactor",
+            "columnName": "projScaleFactor",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "projLatOrigin",
+            "columnName": "projLatOrigin",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "projStdParallel1",
+            "columnName": "projStdParallel1",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "projStdParallel2",
+            "columnName": "projStdParallel2",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "locScale",
+            "columnName": "locScale",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "locRotRad",
+            "columnName": "locRotRad",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "locTx",
+            "columnName": "locTx",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "locTy",
+            "columnName": "locTy",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "locPointCount",
+            "columnName": "locPointCount",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "locLastSolvedAt",
+            "columnName": "locLastSolvedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "points",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `projectId` INTEGER NOT NULL, `name` TEXT NOT NULL, `northing` REAL NOT NULL, `easting` REAL NOT NULL, `ellipsoidalHeight` REAL, `orthoHeight` REAL, `latDeg` REAL, `lonDeg` REAL, `fixType` TEXT, `hrms` REAL, `pdop` REAL, `hdop` REAL, `vdop` REAL, `featureCode` TEXT, `description` TEXT, `deleted` INTEGER NOT NULL, `deletedAt` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "projectId",
+            "columnName": "projectId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "northing",
+            "columnName": "northing",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "easting",
+            "columnName": "easting",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ellipsoidalHeight",
+            "columnName": "ellipsoidalHeight",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "orthoHeight",
+            "columnName": "orthoHeight",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "latDeg",
+            "columnName": "latDeg",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lonDeg",
+            "columnName": "lonDeg",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "fixType",
+            "columnName": "fixType",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "hrms",
+            "columnName": "hrms",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "pdop",
+            "columnName": "pdop",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "hdop",
+            "columnName": "hdop",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "vdop",
+            "columnName": "vdop",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "featureCode",
+            "columnName": "featureCode",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "deleted",
+            "columnName": "deleted",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_points_projectId",
+            "unique": false,
+            "columnNames": [
+              "projectId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_points_projectId` ON `${TABLE_NAME}` (`projectId`)"
+          },
+          {
+            "name": "index_points_name",
+            "unique": false,
+            "columnNames": [
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_points_name` ON `${TABLE_NAME}` (`name`)"
+          },
+          {
+            "name": "index_points_projectId_deleted",
+            "unique": false,
+            "columnNames": [
+              "projectId",
+              "deleted"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_points_projectId_deleted` ON `${TABLE_NAME}` (`projectId`, `deleted`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "ntrip_profiles",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `host` TEXT NOT NULL, `port` INTEGER NOT NULL, `mountPoint` TEXT NOT NULL, `username` TEXT, `password` TEXT, `autoConnect` INTEGER NOT NULL, `lastUsed` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "host",
+            "columnName": "host",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "port",
+            "columnName": "port",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mountPoint",
+            "columnName": "mountPoint",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "username",
+            "columnName": "username",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "password",
+            "columnName": "password",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "autoConnect",
+            "columnName": "autoConnect",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastUsed",
+            "columnName": "lastUsed",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "survey_points",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `projectId` INTEGER NOT NULL, `name` TEXT NOT NULL, `code` TEXT, `latitude` REAL, `longitude` REAL, `elevation` REAL, `northing` REAL, `easting` REAL, `zone` TEXT, `hrms` REAL, `vrms` REAL, `pdop` REAL, `satellites` INTEGER, `fixType` TEXT, `antennaHeight` REAL, `timestamp` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "projectId",
+            "columnName": "projectId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "code",
+            "columnName": "code",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "latitude",
+            "columnName": "latitude",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "longitude",
+            "columnName": "longitude",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "elevation",
+            "columnName": "elevation",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "northing",
+            "columnName": "northing",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "easting",
+            "columnName": "easting",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "zone",
+            "columnName": "zone",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "hrms",
+            "columnName": "hrms",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "vrms",
+            "columnName": "vrms",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "pdop",
+            "columnName": "pdop",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "satellites",
+            "columnName": "satellites",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "fixType",
+            "columnName": "fixType",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "antennaHeight",
+            "columnName": "antennaHeight",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_survey_points_projectId",
+            "unique": false,
+            "columnNames": [
+              "projectId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_survey_points_projectId` ON `${TABLE_NAME}` (`projectId`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "detail_features",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `projectId` INTEGER NOT NULL, `type` TEXT NOT NULL, `code` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "projectId",
+            "columnName": "projectId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "code",
+            "columnName": "code",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_detail_features_projectId",
+            "unique": false,
+            "columnNames": [
+              "projectId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_detail_features_projectId` ON `${TABLE_NAME}` (`projectId`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "detail_feature_points",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `featureId` INTEGER NOT NULL, `x` REAL NOT NULL, `y` REAL NOT NULL, `z` REAL, `code` TEXT, `orderIndex` INTEGER NOT NULL, `timestamp` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "featureId",
+            "columnName": "featureId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "x",
+            "columnName": "x",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "y",
+            "columnName": "y",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "z",
+            "columnName": "z",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "code",
+            "columnName": "code",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "orderIndex",
+            "columnName": "orderIndex",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_detail_feature_points_featureId",
+            "unique": false,
+            "columnNames": [
+              "featureId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_detail_feature_points_featureId` ON `${TABLE_NAME}` (`featureId`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "calibration_points",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `projectId` INTEGER NOT NULL, `srcNorth` REAL NOT NULL, `srcEast` REAL NOT NULL, `dstNorth` REAL NOT NULL, `dstEast` REAL NOT NULL, `weight` REAL NOT NULL, `include` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "projectId",
+            "columnName": "projectId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "srcNorth",
+            "columnName": "srcNorth",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "srcEast",
+            "columnName": "srcEast",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dstNorth",
+            "columnName": "dstNorth",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dstEast",
+            "columnName": "dstEast",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "weight",
+            "columnName": "weight",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "include",
+            "columnName": "include",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_calibration_points_projectId",
+            "unique": false,
+            "columnNames": [
+              "projectId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_calibration_points_projectId` ON `${TABLE_NAME}` (`projectId`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "ntrip_sessions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `profileId` INTEGER, `startTs` INTEGER NOT NULL, `endTs` INTEGER NOT NULL, `rtcmBytes` INTEGER NOT NULL, `nmeaBytes` INTEGER NOT NULL, `avgRateBps` REAL NOT NULL, `maxRateBps` REAL NOT NULL, `corrections` INTEGER NOT NULL, `finalFix` TEXT, `simulated` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "profileId",
+            "columnName": "profileId",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "startTs",
+            "columnName": "startTs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endTs",
+            "columnName": "endTs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rtcmBytes",
+            "columnName": "rtcmBytes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nmeaBytes",
+            "columnName": "nmeaBytes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "avgRateBps",
+            "columnName": "avgRateBps",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "maxRateBps",
+            "columnName": "maxRateBps",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "corrections",
+            "columnName": "corrections",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "finalFix",
+            "columnName": "finalFix",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "simulated",
+            "columnName": "simulated",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_ntrip_sessions_profileId",
+            "unique": false,
+            "columnNames": [
+              "profileId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_ntrip_sessions_profileId` ON `${TABLE_NAME}` (`profileId`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "cad_layers",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `projectId` INTEGER NOT NULL, `name` TEXT NOT NULL, `colorIndex` INTEGER, `visible` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "projectId",
+            "columnName": "projectId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "colorIndex",
+            "columnName": "colorIndex",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "visible",
+            "columnName": "visible",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_cad_layers_projectId_name",
+            "unique": true,
+            "columnNames": [
+              "projectId",
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_cad_layers_projectId_name` ON `${TABLE_NAME}` (`projectId`, `name`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "cad_entities",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `projectId` INTEGER NOT NULL, `layerId` INTEGER NOT NULL, `type` TEXT NOT NULL, `dataEncoded` TEXT NOT NULL, `colorIndex` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "projectId",
+            "columnName": "projectId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "layerId",
+            "columnName": "layerId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dataEncoded",
+            "columnName": "dataEncoded",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "colorIndex",
+            "columnName": "colorIndex",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_cad_entities_projectId",
+            "unique": false,
+            "columnNames": [
+              "projectId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_cad_entities_projectId` ON `${TABLE_NAME}` (`projectId`)"
+          },
+          {
+            "name": "index_cad_entities_layerId",
+            "unique": false,
+            "columnNames": [
+              "layerId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_cad_entities_layerId` ON `${TABLE_NAME}` (`layerId`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "survey_ranges",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `projectId` INTEGER NOT NULL, `name` TEXT NOT NULL, `pointCount` INTEGER NOT NULL, `area` REAL, `perimeter` REAL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "projectId",
+            "columnName": "projectId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pointCount",
+            "columnName": "pointCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "area",
+            "columnName": "area",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "perimeter",
+            "columnName": "perimeter",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_survey_ranges_projectId",
+            "unique": false,
+            "columnNames": [
+              "projectId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_survey_ranges_projectId` ON `${TABLE_NAME}` (`projectId`)"
+          },
+          {
+            "name": "index_survey_ranges_projectId_name",
+            "unique": true,
+            "columnNames": [
+              "projectId",
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_survey_ranges_projectId_name` ON `${TABLE_NAME}` (`projectId`, `name`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "gis_features",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `projectId` INTEGER NOT NULL, `type` TEXT NOT NULL, `attr` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "projectId",
+            "columnName": "projectId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "attr",
+            "columnName": "attr",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_gis_features_projectId_id",
+            "unique": false,
+            "columnNames": [
+              "projectId",
+              "id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_gis_features_projectId_id` ON `${TABLE_NAME}` (`projectId`, `id`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "measurement_logs",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `projectId` INTEGER, `mode` TEXT, `eventType` TEXT NOT NULL, `message` TEXT, `createdAt` INTEGER NOT NULL, `extra` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "projectId",
+            "columnName": "projectId",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "mode",
+            "columnName": "mode",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "eventType",
+            "columnName": "eventType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "message",
+            "columnName": "message",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "extra",
+            "columnName": "extra",
+            "affinity": "TEXT",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '798d10a2c633eef77e51d988fa5032af')"
+    ]
+  }
+}

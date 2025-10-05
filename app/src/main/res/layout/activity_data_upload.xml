@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Data Upload / NTRIP"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:paddingBottom="8dp" />
+
+    <EditText
+        android:id="@+id/et_server"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Caster server" />
+
+    <EditText
+        android:id="@+id/et_port"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Port" />
+
+    <EditText
+        android:id="@+id/et_mount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Mountpoint" />
+
+    <Button
+        android:id="@+id/btn_start_upload"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Start Upload (simulate)" />
+
+</LinearLayout>

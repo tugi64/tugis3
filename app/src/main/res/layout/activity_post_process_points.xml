@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+    <TextView
+        android:id="@+id/tvPostProcessPointsTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Post-Process Points"
+        android:textSize="24sp"
+        android:textStyle="bold" />
+    <EditText
+        android:id="@+id/etOffsetX"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="X Offset (metre)"
+        android:inputType="numberDecimal"
+        android:layout_marginTop="16dp" />
+    <EditText
+        android:id="@+id/etOffsetY"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Y Offset (metre)"
+        android:inputType="numberDecimal"
+        android:layout_marginTop="8dp" />
+    <EditText
+        android:id="@+id/etOffsetH"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="H Offset (metre)"
+        android:inputType="numberDecimal"
+        android:layout_marginTop="8dp" />
+    <Button
+        android:id="@+id/btnApplyOffset"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Offsetleri Uygula"
+        android:layout_marginTop="16dp" />
+    <Button
+        android:id="@+id/btnMarkerCalibration"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Marker Point Calibration"
+        android:layout_marginTop="8dp" />
+    <TextView
+        android:id="@+id/tvResult"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Sonuçlar burada gösterilecek"
+        android:textSize="16sp"
+        android:layout_marginTop="16dp" />
+    <Button
+        android:id="@+id/btnRefresh"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Refresh"
+        android:layout_marginTop="8dp" />
+    <TextView
+        android:id="@+id/tvTimeRange"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Zaman Aralığı Seçimi"
+        android:layout_marginTop="16dp" />
+    <EditText
+        android:id="@+id/etStartTime"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Başlangıç Zamanı (örn: 09:00)"
+        android:inputType="time"
+        android:layout_marginTop="8dp" />
+    <EditText
+        android:id="@+id/etEndTime"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Bitiş Zamanı (örn: 10:00)"
+        android:inputType="time"
+        android:layout_marginTop="8dp" />
+</LinearLayout>

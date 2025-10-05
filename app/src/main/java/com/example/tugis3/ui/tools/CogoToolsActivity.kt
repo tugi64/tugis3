@@ -1,21 +1,24 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
 package com.example.tugis3.ui.tools
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.tugis3.cogo.GeoMath
 import com.example.tugis3.ui.theme.Tugis3Theme
+import java.util.Locale
+import androidx.hilt.navigation.compose.hiltViewModel
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class CogoToolsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -28,117 +31,29 @@ class CogoToolsActivity : ComponentActivity() {
 }
 
 @Composable
-fun CogoToolsScreen() {
-    var selectedTool by remember { mutableStateOf("Coordinate Inverse") }
-    
-    val cogoTools = listOf(
-        CogoTool("Coordinate Inverse", "Calculate distance and azimuth between two points", Icons.Default.ArrowForward),
-        CogoTool("Offset Distance/Angle", "Calculate offset point coordinates", Icons.Default.ArrowBack),
-        CogoTool("Spatial Distance", "Calculate 3D distance between points", Icons.Default.Height),
-        CogoTool("Angle Calculation", "Calculate angles between three points", Icons.Default.Angle),
-        CogoTool("Intersection", "Calculate intersection of two lines", Icons.Default.CallMerge),
-        CogoTool("Resection", "Calculate point coordinates from known lines", Icons.Default.LocationSearching),
-        CogoTool("Forward Intersection", "Calculate intersection from angles", Icons.Default.ArrowUpward),
-        CogoTool("Coordinate Traverse", "Calculate traverse point coordinates", Icons.Default.Timeline),
-        CogoTool("Offset Point", "Calculate offset point from line", Icons.Default.CallSplit),
-        CogoTool("Divide Line Equally", "Divide line into equal segments", Icons.Default.Divide),
-        CogoTool("Circle Center", "Calculate circle center from three points", Icons.Default.RadioButtonUnchecked),
-        CogoTool("Traverse Calculation", "Calculate traverse with 2 points direction", Icons.Default.Navigation)
-    )
-    
+fun CogoToolsScreen(vm: CogoPrefsViewModel = hiltViewModel()) {
+    val tabs = listOf("Inverse", "Doğru", "Projeksiyon", "Açı")
+    val selectedTab by vm.tab.collectAsState()
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("COGO Tools") },
-                actions = {
-                    IconButton(onClick = { /* Points Database */ }) {
-                        Icon(Icons.Default.Storage, contentDescription = "Points Database")
-                    }
-                }
+                actions = { IconButton(onClick = { }) { Icon(Icons.Default.Storage, contentDescription = null) } }
             )
         }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // COGO Tools List
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(cogoTools) { tool ->
-                    CogoToolCard(
-                        tool = tool,
-                        isSelected = selectedTool == tool.name,
-                        onClick = { selectedTool = tool.name }
-                    )
+    ) { pad ->
+        Column(Modifier.fillMaxSize().padding(pad)) {
+            TabRow(selectedTabIndex = selectedTab) {
+                tabs.forEachIndexed { idx, title ->
+                    Tab(selected = idx == selectedTab, onClick = { vm.setTab(idx) }, text = { Text(title) })
                 }
             }
-            
-            // Selected Tool Content
-            when (selectedTool) {
-                "Coordinate Inverse" -> CoordinateInverseContent()
-                "Offset Distance/Angle" -> OffsetDistanceAngleContent()
-                "Spatial Distance" -> SpatialDistanceContent()
-                "Angle Calculation" -> AngleCalculationContent()
-                "Intersection" -> IntersectionContent()
-                "Resection" -> ResectionContent()
-                "Forward Intersection" -> ForwardIntersectionContent()
-                "Coordinate Traverse" -> CoordinateTraverseContent()
-                "Offset Point" -> OffsetPointContent()
-                "Divide Line Equally" -> DivideLineEquallyContent()
-                "Circle Center" -> CircleCenterContent()
-                "Traverse Calculation" -> TraverseCalculationContent()
-            }
-        }
-    }
-}
-
-@Composable
-fun CogoToolCard(
-    tool: CogoTool,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onClick,
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) 
-                MaterialTheme.colorScheme.primaryContainer 
-            else MaterialTheme.colorScheme.surface
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = tool.icon,
-                contentDescription = tool.name,
-                modifier = Modifier.size(32.dp)
-            )
-            
-            Spacer(modifier = Modifier.width(16.dp))
-            
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = tool.name,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = tool.description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            Spacer(Modifier.height(8.dp))
+            when (tabs[selectedTab]) {
+                "Inverse" -> CoordinateInverseContent()
+                "Doğru" -> LineFromTwoPointsContent()
+                "Projeksiyon" -> PointProjectionContent()
+                "Açı" -> AngleSolverContent()
             }
         }
     }
@@ -146,6 +61,45 @@ fun CogoToolCard(
 
 @Composable
 fun CoordinateInverseContent() {
+    // State for inputs
+    var nA by remember { mutableStateOf("") }
+    var eA by remember { mutableStateOf("") }
+    var hA by remember { mutableStateOf("") }
+    var nB by remember { mutableStateOf("") }
+    var eB by remember { mutableStateOf("") }
+    var hB by remember { mutableStateOf("") }
+
+    // Results state
+    var horizontal by remember { mutableStateOf<Double?>(null) }
+    var azimuth by remember { mutableStateOf<Double?>(null) }
+    var dh by remember { mutableStateOf<Double?>(null) }
+    var slope by remember { mutableStateOf<Double?>(null) }
+    var slopeRatio by remember { mutableStateOf<String?>(null) }
+    var errorMsg by remember { mutableStateOf<String?>(null) }
+
+    fun parse(v: String): Double? = v.trim().replace(',', '.').toDoubleOrNull()
+
+    fun calculate() {
+        errorMsg = null
+        val n1 = parse(nA); val e1 = parse(eA)
+        val n2 = parse(nB); val e2 = parse(eB)
+        if (n1 == null || e1 == null || n2 == null || e2 == null) {
+            errorMsg = "Geçerli N/E değerleri giriniz"; return
+        }
+        val h1 = parse(hA)
+        val h2 = parse(hB)
+        val hDist = GeoMath.horizontalDistance(n1, e1, n2, e2)
+        val az = GeoMath.azimuthDeg(n1, e1, n2, e2)
+        val deltaH = if (h1 != null && h2 != null) h2 - h1 else null
+        val slopeDist = if (deltaH != null) GeoMath.slopeDistance(hDist, deltaH) else null
+        val ratio = if (deltaH != null) GeoMath.slopeRatio(hDist, deltaH) else null
+        horizontal = hDist
+        azimuth = az
+        dh = deltaH
+        slope = slopeDist
+        slopeRatio = ratio
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -157,160 +111,53 @@ fun CoordinateInverseContent() {
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Text("Calculate horizontal distance, azimuth, height difference, slope ratio and slope distance between two points.")
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // Start Point A
-            Text(
-                text = "Start Point A",
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Bold
-            )
             Spacer(modifier = Modifier.height(8.dp))
-            
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedTextField(
-                    value = "",
-                    onValueChange = { },
-                    label = { Text("Northing") },
-                    modifier = Modifier.weight(1f)
-                )
-                OutlinedTextField(
-                    value = "",
-                    onValueChange = { },
-                    label = { Text("Easting") },
-                    modifier = Modifier.weight(1f)
-                )
-                OutlinedTextField(
-                    value = "",
-                    onValueChange = { },
-                    label = { Text("Height") },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-            
+            Text("İki nokta arasındaki yatay mesafe, azimut, yükseklik farkı ve eğik mesafe hesaplanır.")
             Spacer(modifier = Modifier.height(16.dp))
-            
-            // End Point B
-            Text(
-                text = "End Point B",
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedTextField(
-                    value = "",
-                    onValueChange = { },
-                    label = { Text("Northing") },
-                    modifier = Modifier.weight(1f)
-                )
-                OutlinedTextField(
-                    value = "",
-                    onValueChange = { },
-                    label = { Text("Easting") },
-                    modifier = Modifier.weight(1f)
-                )
-                OutlinedTextField(
-                    value = "",
-                    onValueChange = { },
-                    label = { Text("Height") },
-                    modifier = Modifier.weight(1f)
-                )
+
+            Text("Nokta A", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(4.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(nA, { nA = it }, label = { Text("Northing") }, modifier = Modifier.weight(1f))
+                OutlinedTextField(eA, { eA = it }, label = { Text("Easting") }, modifier = Modifier.weight(1f))
+                OutlinedTextField(hA, { hA = it }, label = { Text("Height") }, modifier = Modifier.weight(1f))
             }
-            
+            Spacer(modifier = Modifier.height(12.dp))
+            Text("Nokta B", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(4.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(nB, { nB = it }, label = { Text("Northing") }, modifier = Modifier.weight(1f))
+                OutlinedTextField(eB, { eB = it }, label = { Text("Easting") }, modifier = Modifier.weight(1f))
+                OutlinedTextField(hB, { hB = it }, label = { Text("Height") }, modifier = Modifier.weight(1f))
+            }
             Spacer(modifier = Modifier.height(16.dp))
-            
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Button(
-                    onClick = { /* Calculate */ },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.Calculate, contentDescription = "Calculate")
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Calculate")
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { calculate() }, modifier = Modifier.weight(1f)) {
+                    Icon(Icons.Default.Calculate, contentDescription = null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Hesapla")
                 }
-                
-                Button(
-                    onClick = { /* Save to Points Database */ },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.Save, contentDescription = "Save")
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Save")
+                OutlinedButton(onClick = {
+                    nA=""; eA=""; hA=""; nB=""; eB=""; hB=""
+                    horizontal=null; azimuth=null; dh=null; slope=null; slopeRatio=null; errorMsg=null
+                }, modifier = Modifier.weight(1f)) {
+                    Icon(Icons.Default.Refresh, contentDescription = null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Temizle")
                 }
             }
-            
             Spacer(modifier = Modifier.height(16.dp))
-            
-            // Results
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Text(
-                        text = "Results",
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Horizontal Distance:")
-                        Text("123.456 m")
-                    }
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Azimuth:")
-                        Text("45°30'15\"")
-                    }
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Height Difference:")
-                        Text("5.678 m")
-                    }
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Slope Ratio:")
-                        Text("1:21.7")
-                    }
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Slope Distance:")
-                        Text("123.687 m")
-                    }
+            if (errorMsg != null) {
+                Text(errorMsg!!, color = MaterialTheme.colorScheme.error)
+            }
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Sonuçlar", fontWeight = FontWeight.Bold)
+                    Text("Yatay Mesafe: ${horizontal?.let { String.format(Locale.US, "%.4f m", it) } ?: "-"}")
+                    Text("Azimut: ${azimuth?.let { GeoMath.dmsFormat(it) } ?: "-"}")
+                    Text("Yükseklik Farkı: ${dh?.let { String.format(Locale.US, "%.4f m", it) } ?: "-"}")
+                    Text("Eğik Mesafe: ${slope?.let { String.format(Locale.US, "%.4f m", it) } ?: "-"}")
+                    Text("Eğim Oranı: ${slopeRatio ?: "-"}")
                 }
             }
         }
@@ -318,232 +165,136 @@ fun CoordinateInverseContent() {
 }
 
 @Composable
-fun OffsetDistanceAngleContent() {
-    Card(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = "Offset Distance/Angle",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Text("Calculate offset point coordinates from a line defined by two points.")
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // Implementation for Offset Distance/Angle
-            Text("This tool calculates offset point coordinates...")
-        }
+fun LineFromTwoPointsContent() {
+    var n1 by remember { mutableStateOf("") }; var e1 by remember { mutableStateOf("") }
+    var n2 by remember { mutableStateOf("") }; var e2 by remember { mutableStateOf("") }
+    var distance by remember { mutableStateOf<Double?>(null) }
+    var azimuth by remember { mutableStateOf<Double?>(null) }
+    var midN by remember { mutableStateOf<Double?>(null) }; var midE by remember { mutableStateOf<Double?>(null) }
+    var err by remember { mutableStateOf<String?>(null) }
+    fun parse(s: String) = s.trim().replace(',', '.').toDoubleOrNull()
+    fun calc() {
+        err = null
+        val N1 = parse(n1); val E1 = parse(e1); val N2 = parse(n2); val E2 = parse(e2)
+        if (N1==null||E1==null||N2==null||E2==null) { err = "Geçerli N/E giriniz"; return }
+        distance = GeoMath.horizontalDistance(N1,E1,N2,E2)
+        azimuth = GeoMath.azimuthDeg(N1,E1,N2,E2)
+        midN = (N1+N2)/2.0; midE = (E1+E2)/2.0
     }
+    Card(Modifier.fillMaxWidth().padding(12.dp)) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("İki Noktadan Doğru", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text("İki nokta arasındaki doğrultu azimut, mesafe ve orta nokta hesaplanır.", style = MaterialTheme.typography.bodySmall)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(n1,{n1=it}, label={Text("N1")}, modifier=Modifier.weight(1f))
+            OutlinedTextField(e1,{e1=it}, label={Text("E1")}, modifier=Modifier.weight(1f))
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(n2,{n2=it}, label={Text("N2")}, modifier=Modifier.weight(1f))
+            OutlinedTextField(e2,{e2=it}, label={Text("E2")}, modifier=Modifier.weight(1f))
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick={calc()}, modifier=Modifier.weight(1f)) { Icon(Icons.Default.Calculate,null); Spacer(Modifier.width(4.dp)); Text("Hesapla") }
+            OutlinedButton(onClick={ n1="";e1="";n2="";e2="";distance=null;azimuth=null;midN=null;midE=null;err=null }, modifier=Modifier.weight(1f)) { Icon(Icons.Default.Refresh,null); Spacer(Modifier.width(4.dp)); Text("Temizle") }
+        }
+        if (err!=null) Text(err!!, color=MaterialTheme.colorScheme.error)
+        Card(colors=CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Sonuçlar", fontWeight = FontWeight.Bold)
+                Text("Mesafe: ${distance?.let { String.format(Locale.US,"%.4f m",it) } ?: "-"}")
+                Text("Azimut: ${azimuth?.let { GeoMath.dmsFormat(it) } ?: "-"}")
+                Text("Orta N: ${midN?.let { String.format(Locale.US,"%.4f",it) } ?: "-"}  E: ${midE?.let { String.format(Locale.US,"%.4f",it) } ?: "-"}")
+            }
+        }
+    }}
 }
 
 @Composable
-fun SpatialDistanceContent() {
-    Card(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = "Spatial Distance",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Text("Calculate 3D spatial distance between two points.")
-        }
+fun PointProjectionContent() {
+    var n by remember { mutableStateOf("") }; var e by remember { mutableStateOf("") }
+    var dist by remember { mutableStateOf("") }; var az by remember { mutableStateOf("") }
+    var outN by remember { mutableStateOf<Double?>(null) }; var outE by remember { mutableStateOf<Double?>(null) }
+    var err by remember { mutableStateOf<String?>(null) }
+    fun parse(s:String)=s.trim().replace(',', '.').toDoubleOrNull()
+    fun calc() {
+        err=null
+        val N=parse(n); val E=parse(e); val D=parse(dist); val A=parse(az)
+        if (N==null||E==null||D==null||A==null) { err="Geçersiz giriş"; return }
+        val (n2,e2)=GeoMath.forwardNE(N,E,D,A)
+        outN=n2; outE=e2
     }
+    Card(Modifier.fillMaxWidth().padding(12.dp)) { Column(Modifier.padding(16.dp), verticalArrangement=Arrangement.spacedBy(12.dp)) {
+        Text("Nokta Projeksiyonu", style=MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text("Başlangıç noktası, mesafe ve azimut ile hedef koordinat hesaplanır.", style=MaterialTheme.typography.bodySmall)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(n,{n=it}, label={Text("N")}, modifier=Modifier.weight(1f))
+            OutlinedTextField(e,{e=it}, label={Text("E")}, modifier=Modifier.weight(1f))
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(dist,{dist=it}, label={Text("Mesafe")}, modifier=Modifier.weight(1f))
+            OutlinedTextField(az,{az=it}, label={Text("Azimut (deg)")}, modifier=Modifier.weight(1f))
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+            Button(onClick={calc()}, modifier=Modifier.weight(1f)) { Icon(Icons.Default.Calculate,null); Spacer(Modifier.width(4.dp)); Text("Hesapla") }
+            OutlinedButton(onClick={ n="";e="";dist="";az="";outN=null;outE=null;err=null }, modifier=Modifier.weight(1f)) { Icon(Icons.Default.Refresh,null); Spacer(Modifier.width(4.dp)); Text("Temizle") }
+        }
+        if (err!=null) Text(err!!, color=MaterialTheme.colorScheme.error)
+        Card(colors=CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Sonuçlar", fontWeight = FontWeight.Bold)
+                Text("Hedef N: ${outN?.let { String.format(Locale.US,"%.4f",it) } ?: "-"}")
+                Text("Hedef E: ${outE?.let { String.format(Locale.US,"%.4f",it) } ?: "-"}")
+            }
+        }
+    }}
 }
 
 @Composable
-fun AngleCalculationContent() {
-    Card(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = "Angle Calculation",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Text("Calculate angles between three points.")
-        }
+fun AngleSolverContent() {
+    var nA by remember { mutableStateOf("") }; var eA by remember { mutableStateOf("") }
+    var nB by remember { mutableStateOf("") }; var eB by remember { mutableStateOf("") }
+    var nC by remember { mutableStateOf("") }; var eC by remember { mutableStateOf("") }
+    var angle by remember { mutableStateOf<Double?>(null) }
+    var azAB by remember { mutableStateOf<Double?>(null) }; var azBC by remember { mutableStateOf<Double?>(null) }
+    var err by remember { mutableStateOf<String?>(null) }
+    fun parse(s:String)=s.trim().replace(',', '.').toDoubleOrNull()
+    fun calc() {
+        err=null
+        val NA=parse(nA); val EA=parse(eA); val NB=parse(nB); val EB=parse(eB); val NC=parse(nC); val EC=parse(eC)
+        if (NA==null||EA==null||NB==null||EB==null||NC==null||EC==null){ err="Geçersiz giriş"; return }
+        azAB = GeoMath.azimuthDeg(NB,EB,NA,EA)
+        azBC = GeoMath.azimuthDeg(NB,EB,NC,EC)
+        angle = GeoMath.angleAt(NA,EA,NB,EB,NC,EC)
     }
-}
-
-@Composable
-fun IntersectionContent() {
-    Card(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = "Intersection",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Text("Calculate intersection point of two lines.")
+    Card(Modifier.fillMaxWidth().padding(12.dp)) { Column(Modifier.padding(16.dp), verticalArrangement=Arrangement.spacedBy(12.dp)) {
+        Text("Açı Çözümü", style=MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text("A-B-C üçlüsünde B tepe açısı ve yön azimutları.", style=MaterialTheme.typography.bodySmall)
+        Text("Nokta A")
+        Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(nA,{nA=it}, label={Text("NA")}, modifier=Modifier.weight(1f))
+            OutlinedTextField(eA,{eA=it}, label={Text("EA")}, modifier=Modifier.weight(1f))
         }
-    }
-}
-
-@Composable
-fun ResectionContent() {
-    Card(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = "Resection",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Text("Calculate point coordinates from known lines.")
+        Text("Nokta B")
+        Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(nB,{nB=it}, label={Text("NB")}, modifier=Modifier.weight(1f))
+            OutlinedTextField(eB,{eB=it}, label={Text("EB")}, modifier=Modifier.weight(1f))
         }
-    }
-}
-
-@Composable
-fun ForwardIntersectionContent() {
-    Card(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = "Forward Intersection",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Text("Calculate intersection point from angles.")
+        Text("Nokta C")
+        Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(nC,{nC=it}, label={Text("NC")}, modifier=Modifier.weight(1f))
+            OutlinedTextField(eC,{eC=it}, label={Text("EC")}, modifier=Modifier.weight(1f))
         }
-    }
-}
-
-@Composable
-fun CoordinateTraverseContent() {
-    Card(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = "Coordinate Traverse",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Text("Calculate traverse point coordinates.")
+        Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+            Button(onClick={calc()}, modifier=Modifier.weight(1f)) { Icon(Icons.Default.Calculate,null); Spacer(Modifier.width(4.dp)); Text("Hesapla") }
+            OutlinedButton(onClick={ nA="";eA="";nB="";eB="";nC="";eC="";angle=null;azAB=null;azBC=null;err=null }, modifier=Modifier.weight(1f)) { Icon(Icons.Default.Refresh,null); Spacer(Modifier.width(4.dp)); Text("Temizle") }
         }
-    }
-}
-
-@Composable
-fun OffsetPointContent() {
-    Card(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = "Offset Point",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Text("Calculate offset point from line.")
+        if (err!=null) Text(err!!, color=MaterialTheme.colorScheme.error)
+        Card(colors=CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Sonuçlar", fontWeight = FontWeight.Bold)
+                Text("Azimut AB: ${azAB?.let { GeoMath.dmsFormat(it) } ?: "-"}")
+                Text("Azimut BC: ${azBC?.let { GeoMath.dmsFormat(it) } ?: "-"}")
+                Text("B Açısı: ${angle?.let { String.format(Locale.US, "%.4f°", it) } ?: "-"}")
+            }
         }
-    }
+    }}
 }
-
-@Composable
-fun DivideLineEquallyContent() {
-    Card(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = "Divide Line Equally",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Text("Divide line into equal segments.")
-        }
-    }
-}
-
-@Composable
-fun CircleCenterContent() {
-    Card(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = "Circle Center",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Text("Calculate circle center from three points.")
-        }
-    }
-}
-
-@Composable
-fun TraverseCalculationContent() {
-    Card(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = "Traverse Calculation",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Text("Calculate traverse with 2 points direction.")
-        }
-    }
-}
-
-data class CogoTool(
-    val name: String,
-    val description: String,
-    val icon: androidx.compose.ui.graphics.vector.ImageVector
-)

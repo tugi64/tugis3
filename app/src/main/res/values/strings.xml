@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">tugis3</string>
+    <!-- Google Maps API Key -->
+    <string name="google_maps_key">AIzaSyBF49PySnhzZlZ3ZoR3fNiC9WP3Zp4JWRY</string>
 </resources>
