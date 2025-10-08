@@ -31,7 +31,7 @@ detekt = "1.23.6"
 ktlintGradle = "12.1.1"
 composeCompiler = "1.7.2"
 datastore = "1.1.1"
-mapsCompose = "4.4.1"
+mapsCompose = "6.12.1"
 mapsUtils = "5.1.1"
 
 [libraries]
