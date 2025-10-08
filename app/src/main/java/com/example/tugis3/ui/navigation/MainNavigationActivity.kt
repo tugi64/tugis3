@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.automirrored.outlined.List
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,86 +38,122 @@ import androidx.navigation.compose.rememberNavController
 import com.example.tugis3.ui.theme.Tugis3Theme
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.compose.ui.platform.LocalContext
-import com.example.tugis3.ui.project.ProjectManagerActivity
-import com.example.tugis3.ui.device.DeviceCommunicationActivity
-import com.example.tugis3.ui.tools.CogoToolsActivity
-import com.example.tugis3.ui.tools.LocalizationActivity
-import com.example.tugis3.ui.tools.DataSharingActivity
-import com.example.tugis3.ui.tools.AreaCalculationActivity
-import com.example.tugis3.ui.tools.DistanceCalculationActivity
-import com.example.tugis3.ui.tools.CoordinateConverterActivity
-import com.example.tugis3.ui.tools.VolumeCalculationActivity
-import com.example.tugis3.ui.tools.AngleConversionActivity
-import com.example.tugis3.ui.tools.CalculatorActivity
-import com.example.tugis3.ui.tools.ExternalRadioConfigActivity
-import com.example.tugis3.ui.tools.PeriodicOffsetActivity
-import com.example.tugis3.ui.tools.FtpSharedDataActivity
-import com.example.tugis3.ui.tools.GridToGroundActivity
-import com.example.tugis3.util.crash.CrashLogger
-import com.example.tugis3.ui.navigation.MenuStateViewModel
-import com.example.tugis3.ui.survey.PointApplicationActivity
-import androidx.hilt.navigation.compose.hiltViewModel
+// Proje aktiviteleri
+import com.example.tugis3.ui.project.*
+// Cihaz aktiviteleri
+import com.example.tugis3.ui.device.*
+// Survey aktiviteleri
+import com.example.tugis3.ui.survey.*
+// CAD
+import com.example.tugis3.ui.cad.CadApplicationActivity
+// Tools aktiviteleri
+import com.example.tugis3.ui.tools.*
+// Ortak
 import com.example.tugis3.ui.common.PlaceholderActivity
-import com.example.tugis3.ui.project.FileManagerActivity
-import com.example.tugis3.ui.project.CoordinateSystemActivity
-import com.example.tugis3.ui.project.EllipsoidParametersActivity
-import com.example.tugis3.ui.project.PointListActivity
-import com.example.tugis3.ui.project.DataUploadActivity
-import com.example.tugis3.ui.project.BarcodeActivity
-import com.example.tugis3.ui.project.CloudSettingsActivity
-import com.example.tugis3.ui.project.SoftwareSettingsActivity
-import com.example.tugis3.ui.project.SoftwareUpdateActivity
+import com.example.tugis3.util.crash.CrashLogger
+import com.example.tugis3.util.crash.CrashLogActivity
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.Immutable
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.hilt.navigation.compose.hiltViewModel // (deprecated uyarısı kalabilir, sürüm güncellenince yeni pakete taşınır)
+// Eksik özel paket aktiviteleri
 import com.example.tugis3.gnss.ui.GnssMonitorActivity
 import com.example.tugis3.ntrip.NtripProfilesActivity
-import com.example.tugis3.ui.device.RoverSettingsActivity
-import com.example.tugis3.ui.device.BaseStationSettingsActivity
-import com.example.tugis3.ui.device.DeviceInfoActivity
-import com.example.tugis3.ui.device.DeviceRegistrationActivity
-import com.example.tugis3.ui.device.MagneticScanActivity
-import com.example.tugis3.ui.survey.GisDataCollectionActivity
-import com.example.tugis3.ui.survey.LayerSettingsActivity
-import com.example.tugis3.ui.survey.ARApplicationActivity
-import com.example.tugis3.ui.survey.PhotogrammetryActivity
-import com.example.tugis3.ui.survey.StaticSurveyActivity
-import com.example.tugis3.ui.survey.EpochSurveyActivity
-import com.example.tugis3.ui.survey.RoadStakeoutActivity
+
+// Merkezi route sabitleri (ileride deeplink vb. için tek noktadan yönetim)
+private object NavRoutes {
+    const val PROJECT = "project"
+    const val DEVICE = "device"
+    const val SURVEY = "survey"
+    const val TOOLS = "tools"
+}
 
 @AndroidEntryPoint
 class MainNavigationActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // Eğer önceki çalıştırmada crash olduysa Crash Log ekranını otomatik açalım
+        // Önceki crash tespit edilirse log ekranını aç
         runCatching {
             val ts = CrashLogger.consumePendingCrash(this)
-            if (ts != null) {
-                startActivity(android.content.Intent(this, com.example.tugis3.util.crash.CrashLogActivity::class.java))
-            }
+            if (ts != null) startActivity(Intent(this, CrashLogActivity::class.java))
         }
-
         try {
             setContent {
-                Tugis3Theme {
-                    AppRoot()
-                }
+                Tugis3Theme { ErrorBoundary { AppRoot() } }
             }
         } catch (t: Throwable) {
-            // Kompozisyon sırasında bir hata oldu, logla ve Crash Log ekranını aç
             runCatching { CrashLogger.logException(this, t) }
-            runCatching {
-                startActivity(android.content.Intent(this, com.example.tugis3.util.crash.CrashLogActivity::class.java))
+            setContent {
+                Tugis3Theme { FatalErrorScreen(error = t, onShowCrashLog = {
+                    runCatching { startActivity(Intent(this, CrashLogActivity::class.java)) }
+                }) }
             }
-            finish()
-            return
+        }
+    }
+}
+
+// Basit Compose Error Boundary - içerik composable'ı çalıştırırken oluşan hataları yakalayıp fallback gösterir
+@Composable
+private fun ErrorBoundary(content: @Composable () -> Unit) {
+    var error by remember { mutableStateOf<Throwable?>(null) }
+    if (error == null) {
+        // İlk compose sırasında hata olursa try-catch yakalar.
+        try {
+            content()
+        } catch (t: Throwable) {
+            error = t
+            // CrashLogger'a yaz (UI thread'te hızlıca) - silent
+            runCatching { CrashLogger.logException(LocalContext.current, t) }
+        }
+    } else {
+        FatalErrorScreen(error = error!!, onShowCrashLog = {
+            val ctx = LocalContext.current
+            runCatching { ctx.startActivity(Intent(ctx, CrashLogActivity::class.java)) }
+        })
+    }
+}
+
+@Composable
+private fun FatalErrorScreen(error: Throwable, onShowCrashLog: () -> Unit) {
+    Scaffold(topBar = { TopAppBar(title = { Text("Kritik Hata") }) }) { pad ->
+        Column(
+            modifier = Modifier
+                .padding(pad)
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = "Ana ekran yüklenirken bir hata oluştu.",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.error
+            )
+            Surface(color = MaterialTheme.colorScheme.surfaceVariant, tonalElevation = 2.dp) {
+                Column(Modifier.padding(12.dp)) {
+                    Text(
+                        text = (error.message ?: error::class.qualifiedName ?: "Bilinmeyen hata"),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Text(
+                text = "Uygulama kapanmadı; Crash Log ekranını açarak detayları inceleyebilirsiniz.",
+                style = MaterialTheme.typography.bodySmall
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(onClick = onShowCrashLog) { Text("Crash Log") }
+                OutlinedButton(onClick = { /* ileride tekrar deneme opsiyonu eklenebilir */ }) { Text("Tekrar Dene") }
+            }
         }
     }
 }
 
 @Composable
-private fun AppRoot() {
-    var showMain by remember { mutableStateOf(false) }
+private fun AppRoot() { // showMain varsayılanı artık true
+    var showMain by rememberSaveable { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-
     if (errorMessage != null) {
         Scaffold { pad ->
             Box(Modifier.fillMaxSize().padding(pad), contentAlignment = Alignment.Center) {
@@ -125,21 +162,10 @@ private fun AppRoot() {
         }
         return
     }
-
-    // Hata yakalama için LaunchedEffect kullanıyoruz
     LaunchedEffect(showMain) {
-        try {
-            // Hata olabilecek durumları burada kontrol edebiliriz
-        } catch (e: Exception) {
-            errorMessage = e.message ?: "Bilinmeyen hata"
-        }
+        try { /* gelecekte bootstrap kontrolleri */ } catch (e: Exception) { errorMessage = e.message ?: "Bilinmeyen hata" }
     }
-
-    if (showMain) {
-        MainNavigationScreen()
-    } else {
-        SafeLanding(onOpenMain = { showMain = true })
-    }
+    if (showMain) MainNavigationScreen() else SafeLanding(onOpenMain = { showMain = true })
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -157,9 +183,7 @@ private fun SafeLanding(onOpenMain: () -> Unit) {
             Text("Uygulama güvenli modda açıldı. Ana ekranı başlatabilir veya Crash Log’a gidebilirsiniz.")
             Button(onClick = onOpenMain) { Text("Ana Ekranı Aç") }
             OutlinedButton(onClick = {
-                runCatching {
-                    context.startActivity(android.content.Intent(context, com.example.tugis3.util.crash.CrashLogActivity::class.java))
-                }
+                runCatching { context.startActivity(Intent(context, CrashLogActivity::class.java)) }
             }) { Text("Crash Log’u Aç") }
         }
     }
@@ -169,33 +193,45 @@ private fun SafeLanding(onOpenMain: () -> Unit) {
 fun MainNavigationScreen() {
     val navController = rememberNavController()
     val navItems = listOf(
-        NavigationItem("Proje", Icons.Outlined.Folder, "project"),
-        NavigationItem("Cihaz", Icons.Outlined.PhoneAndroid, "device"),
-        NavigationItem("Ölçüm", Icons.Outlined.LocationOn, "survey"),
-        NavigationItem("Araçlar", Icons.Outlined.Build, "tools")
+        NavigationItem("Proje", Icons.Outlined.Folder, NavRoutes.PROJECT),
+        NavigationItem("Cihaz", Icons.Outlined.PhoneAndroid, NavRoutes.DEVICE),
+        NavigationItem("Ölçüm", Icons.Outlined.LocationOn, NavRoutes.SURVEY),
+        NavigationItem("Araçlar", Icons.Outlined.Build, NavRoutes.TOOLS)
     )
-
+    var selectedRoute by rememberSaveable { mutableStateOf(NavRoutes.PROJECT) }
+    LaunchedEffect(selectedRoute) {
+        if (selectedRoute != NavRoutes.PROJECT) {
+            val current = navController.currentDestination?.route
+            if (current != selectedRoute) {
+                runCatching {
+                    navController.navigate(selectedRoute) {
+                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+            }
+        }
+    }
     Scaffold(
-        topBar = {
-            GeneralInformationSection()
-        },
+        topBar = { GeneralInformationSection() },
         bottomBar = {
             NavigationBar {
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentDestination = navBackStackEntry?.destination
-
                 navItems.forEach { item ->
                     NavigationBarItem(
                         icon = { Icon(item.icon, contentDescription = item.title) },
                         label = { Text(item.title) },
                         selected = currentDestination?.hierarchy?.any { it.route == item.route } == true,
                         onClick = {
-                            navController.navigate(item.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
+                            if (selectedRoute != item.route) {
+                                selectedRoute = item.route
+                                navController.navigate(item.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
                                 }
-                                launchSingleTop = true
-                                restoreState = true
                             }
                         }
                     )
@@ -205,17 +241,18 @@ fun MainNavigationScreen() {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = "project",
+            startDestination = NavRoutes.PROJECT,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable("project") { ProjectMainScreen() }
-            composable("device") { DeviceMainScreen() }
-            composable("survey") { SurveyMainScreen() }
-            composable("tools") { ToolsMainScreen() }
+            composable(NavRoutes.PROJECT) { ProjectMainScreen() }
+            composable(NavRoutes.DEVICE) { DeviceMainScreen() }
+            composable(NavRoutes.SURVEY) { SurveyMainScreen() }
+            composable(NavRoutes.TOOLS) { ToolsMainScreen() }
         }
     }
 }
 
+@Immutable
 data class NavigationItem(
     val title: String,
     val icon: ImageVector,
@@ -366,6 +403,7 @@ fun GeneralInformationSection() { // uyarı bastırıldı
 // SurvStar benzeri ana ekranlar
 
 // Eski basit MenuItem tanımı yerine id içeren gelişmiş sürüm
+@Immutable
 data class MenuItem(val title: String, val icon: ImageVector, val route: String? = null, val id: String = title.lowercase().replace(" ", "_"))
 
 // --- Menü durum yönetimi: favoriler & son kullanılanlar ---
@@ -382,6 +420,7 @@ fun GridMenu(
     onMenuItemClick: (MenuItem) -> Unit,
     onLongPress: (MenuItem) -> Unit
 ) {
+    val haptic = LocalHapticFeedback.current
     LazyVerticalGrid(
         columns = GridCells.Fixed(columns),
         modifier = Modifier.fillMaxSize(),
@@ -396,8 +435,14 @@ fun GridMenu(
                 modifier = Modifier
                     .aspectRatio(1f)
                     .combinedClickable(
-                        onClick = { onMenuItemClick(item) },
-                        onLongClick = { onLongPress(item) }
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onMenuItemClick(item)
+                        },
+                        onLongClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onLongPress(item)
+                        }
                     ),
                 elevation = CardDefaults.cardElevation(defaultElevation = if (isRecent) 8.dp else 4.dp),
                 colors = CardDefaults.cardColors(
@@ -456,8 +501,8 @@ fun MenuScreenScaffold(
     val ms = rememberMenuState()
     val favorites by ms.favorites.collectAsState()
     val recents by ms.recents.collectAsState()
-    var query by remember { mutableStateOf("") }
-    var selectedTab by remember { mutableStateOf(0) } // 0: Tümü, 1: Favoriler
+    var query by rememberSaveable { mutableStateOf("") }
+    var selectedTab by rememberSaveable { mutableStateOf(0) } // 0: Tümü, 1: Favoriler
     val configuration = LocalConfiguration.current
     val maxWidth = configuration.screenWidthDp
     val columns = remember(maxWidth) {
@@ -639,13 +684,20 @@ fun MenuScreenScaffold(
 @Composable
 fun ProjectMainScreen() {
     val context = LocalContext.current
-    val menuItems = listOf(
+    @Suppress("DEPRECATION")
+    val vm = hiltViewModel<ProjectMenuViewModel>()
+    val uiState by vm.ui.collectAsState()
+    var showCreate by remember { mutableStateOf(false) }
+    var newName by remember { mutableStateOf("") }
+    var newDesc by remember { mutableStateOf("") }
+
+    // Eski grid menü öğeleri (operasyonel menü) aynı kaldı
+    val operationMenuItems = listOf(
         MenuItem("Proje Bilgisi", Icons.Outlined.Folder),
         MenuItem("Dosya Yönet", Icons.Outlined.FileCopy),
         MenuItem("Koordinat Sistemi", Icons.Outlined.Public),
         MenuItem("Nokta Kalibre", Icons.Outlined.GpsFixed),
         MenuItem("Nokta Listesi", Icons.AutoMirrored.Outlined.List),
-        // Tekilleştirme: Veri dışa/içe aktarım ayrı kalemler, 'Veri Gönder' kaldırıldı
         MenuItem("Nokta Verisi Dışa Aktarımı", Icons.Outlined.Upload),
         MenuItem("Nokta Verisi İçe Aktarımı", Icons.Outlined.Download),
         MenuItem("Barkod", Icons.Outlined.QrCodeScanner),
@@ -653,20 +705,185 @@ fun ProjectMainScreen() {
         MenuItem("Yazılım Ayarları", Icons.Outlined.Settings),
         MenuItem("Yazılım Güncelleme", Icons.Outlined.SystemUpdate)
     )
-    MenuScreenScaffold(rawItems = menuItems) { menuItem ->
-        when (menuItem.title) {
-            "Proje Bilgisi" -> context.safeStart(ProjectManagerActivity::class.java, "Proje Bilgisi")
-            "Dosya Yönet" -> context.safeStart(FileManagerActivity::class.java, "Dosya Yönet")
-            "Koordinat Sistemi" -> context.safeStart(CoordinateSystemActivity::class.java, "Koordinat Sistemi")
-            "Nokta Kalibre" -> context.safeStart(EllipsoidParametersActivity::class.java, "Nokta Kalibre")
-            "Nokta Listesi" -> context.safeStart(PointListActivity::class.java, "Nokta Listesi")
-            "Nokta Verisi Dışa Aktarımı" -> context.safeStart(DataUploadActivity::class.java, "Veri Gönder")
-            "Nokta Verisi İçe Aktarımı" -> context.safeStart(FileManagerActivity::class.java, "Dosya Yönet")
-            "Barkod" -> context.safeStart(BarcodeActivity::class.java, "Barkod")
-            "Bulut Ayarları" -> context.safeStart(CloudSettingsActivity::class.java, "Bulut Ayarları")
-            "Yazılım Ayarları" -> context.safeStart(SoftwareSettingsActivity::class.java, "Yazılım Ayarları")
-            "Yazılım Güncelleme" -> context.safeStart(SoftwareUpdateActivity::class.java, "Yazılım Güncelleme")
-            else -> context.safeStart(PlaceholderActivity::class.java, menuItem.title)
+
+    // Hata snackbar
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let { msg ->
+            snackbarHostState.showSnackbar(message = msg, withDismissAction = true)
+            vm.clearError()
+        }
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+    ) { pad ->
+        Column(
+            modifier = Modifier
+                .padding(pad)
+                .fillMaxSize()
+        ) {
+            // --- Aktif Proje Kartı + Aksiyonlar ---
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+            ) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Aktif Proje", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    val ap = uiState.activeProject
+                    if (ap == null) {
+                        Text("Aktif proje yok", style = MaterialTheme.typography.bodyMedium)
+                        OutlinedButton(onClick = { showCreate = true }) { Icon(Icons.Outlined.Add, contentDescription = null); Spacer(Modifier.width(6.dp)); Text("Yeni Proje Oluştur") }
+                    } else {
+                        Text(ap.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                        ap.description?.takeIf { it.isNotBlank() }?.let { desc ->
+                            Text(desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f))
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            AssistChip(onClick = { showCreate = true }, label = { Text("Yeni") }, leadingIcon = { Icon(Icons.Outlined.Add, contentDescription = null) })
+                            AssistChip(onClick = { context.safeStart(ProjectManagerActivity::class.java, "Proje Bilgisi") }, label = { Text("Yönet") }, leadingIcon = { Icon(Icons.Outlined.Settings, contentDescription = null) })
+                            AssistChip(onClick = { context.safeStart(FileManagerActivity::class.java, "Dosya Yönet") }, label = { Text("Dosyalar") }, leadingIcon = { Icon(Icons.Outlined.Folder, contentDescription = null) })
+                        }
+                    }
+                }
+            }
+
+            // --- Proje Listesi ---
+            ElevatedCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp)
+                    .weight(0.5f, fill = false)
+            ) {
+                Column(Modifier.padding(12.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Text("Projeler", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        TextButton(onClick = { showCreate = true }) { Icon(Icons.Outlined.Add, contentDescription = null); Spacer(Modifier.width(4.dp)); Text("Oluştur") }
+                    }
+                    if (uiState.loading) {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    }
+                    if (uiState.projects.isEmpty()) {
+                        Box(Modifier.fillMaxWidth().padding(16.dp)) {
+                            Text("Henüz proje yok. Yeni proje oluşturun.", style = MaterialTheme.typography.bodySmall)
+                        }
+                    } else {
+                        androidx.compose.foundation.lazy.LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            items(uiState.projects, key = { it.id }) { p ->
+                                ProjectRow(
+                                    model = p,
+                                    onActivate = { vm.setActive(p.id) },
+                                    onDelete = { vm.delete(p.id) },
+                                    onOpen = { context.safeStart(ProjectManagerActivity::class.java, p.name) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+            HorizontalDivider()
+            Text(
+                "Operasyon Menüsü",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 4.dp)
+            )
+            Box(Modifier.weight(1f)) {
+                MenuScreenScaffold(rawItems = operationMenuItems) { menuItem ->
+                    when (menuItem.title) {
+                        "Proje Bilgisi" -> context.safeStart(ProjectManagerActivity::class.java, "Proje Bilgisi")
+                        "Dosya Yönet" -> context.safeStart(FileManagerActivity::class.java, "Dosya Yönet")
+                        "Koordinat Sistemi" -> context.safeStart(CoordinateSystemActivity::class.java, "Koordinat Sistemi")
+                        "Nokta Kalibre" -> context.safeStart(EllipsoidParametersActivity::class.java, "Nokta Kalibre")
+                        "Nokta Listesi" -> context.safeStart(PointListActivity::class.java, "Nokta Listesi")
+                        "Nokta Verisi Dışa Aktarımı" -> context.safeStart(DataUploadActivity::class.java, "Veri Gönder")
+                        "Nokta Verisi İçe Aktarımı" -> context.safeStart(FileManagerActivity::class.java, "Dosya Yönet")
+                        "Barkod" -> context.safeStart(BarcodeActivity::class.java, "Barkod")
+                        "Bulut Ayarları" -> context.safeStart(CloudSettingsActivity::class.java, "Bulut Ayarları")
+                        "Yazılım Ayarları" -> context.safeStart(SoftwareSettingsActivity::class.java, "Yazılım Ayarları")
+                        "Yazılım Güncelleme" -> context.safeStart(SoftwareUpdateActivity::class.java, "Yazılım Güncelleme")
+                        else -> context.safeStart(PlaceholderActivity::class.java, menuItem.title)
+                    }
+                }
+            }
+        }
+    }
+
+    // --- Yeni Proje Dialog ---
+    if (showCreate) {
+        AlertDialog(
+            onDismissRequest = { showCreate = false },
+            confirmButton = {
+                TextButton(
+                    enabled = newName.isNotBlank(),
+                    onClick = {
+                        vm.createProject(newName, newDesc.ifBlank { null })
+                        newName = ""; newDesc = ""; showCreate = false
+                    }
+                ) { Text("Oluştur") }
+            },
+            dismissButton = { TextButton(onClick = { showCreate = false }) { Text("İptal") } },
+            title = { Text("Yeni Proje") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(value = newName, onValueChange = { newName = it }, label = { Text("Proje Adı") }, singleLine = true)
+                    OutlinedTextField(value = newDesc, onValueChange = { newDesc = it }, label = { Text("Açıklama (opsiyonel)") })
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun ProjectRow(
+    model: ProjectUiModel,
+    onActivate: () -> Unit,
+    onDelete: () -> Unit,
+    onOpen: () -> Unit
+) {
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = if (model.isActive) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = if (model.isActive) Icons.Outlined.Star else Icons.Outlined.Folder,
+                        contentDescription = null,
+                        tint = if (model.isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(model.name, style = MaterialTheme.typography.bodyMedium, fontWeight = if (model.isActive) FontWeight.Bold else FontWeight.Medium)
+                }
+                model.description?.takeIf { it.isNotBlank() }?.let { d ->
+                    Spacer(Modifier.height(4.dp))
+                    Text(d, style = MaterialTheme.typography.bodySmall, maxLines = 2)
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (!model.isActive) {
+                    IconButton(onClick = onActivate) { Icon(Icons.Outlined.CheckCircle, contentDescription = "Aktif Et") }
+                } else {
+                    IconButton(onClick = onOpen) { Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = "Aç") }
+                }
+                IconButton(onClick = onDelete) { Icon(Icons.Outlined.Delete, contentDescription = "Sil", tint = MaterialTheme.colorScheme.error) }
+            }
         }
     }
 }
@@ -699,23 +916,85 @@ fun DeviceMainScreen() {
     }
 }
 
+// Bölümlenmiş Survey menü veri modeli
+data class SurveySection(val title: String, val items: List<MenuItem>)
+
+@Composable
+private fun SectionedSurveyMenu(
+    sections: List<SurveySection>,
+    onLaunch: (MenuItem) -> Unit
+) {
+    androidx.compose.foundation.lazy.LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        sections.forEach { section ->
+            item(key = section.title + "_header") {
+                Text(
+                    section.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
+                )
+                HorizontalDivider()
+            }
+            item(key = section.title + "_items") {
+                Spacer(Modifier.height(4.dp))
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    section.items.chunked(2).forEach { rowItems ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            rowItems.forEach { mi ->
+                                ElevatedCard(
+                                    onClick = { onLaunch(mi) },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                                        horizontalAlignment = Alignment.Start
+                                    ) {
+                                        Icon(mi.icon, contentDescription = mi.title)
+                                        Text(
+                                            mi.title,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                }
+                            }
+                            if (rowItems.size == 1) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        item { Spacer(Modifier.height(24.dp)) }
+    }
+}
+
 @Composable
 fun SurveyMainScreen() {
     val context = LocalContext.current
-    // Yalnızca üst seviye giriş + diğer gelişmiş/grup dışı özellikler
     val sections = listOf(
         SurveySection(
             title = "Ölçüm Menüsü",
-            items = listOf(
-                MenuItem("Nokta Aplikasyonu", Icons.Outlined.GpsFixed)
-            )
+            items = listOf(MenuItem("Nokta Aplikasyonu", Icons.Outlined.GpsFixed))
         ),
         SurveySection(
             title = "Veri & Yapı",
-            items = listOf(
-                MenuItem("GIS Veri", Icons.Outlined.Public),
-                MenuItem("Katman Ayarları", Icons.Outlined.Layers)
-            )
+            items = listOf(MenuItem("GIS Veri", Icons.Outlined.Public), MenuItem("Katman Ayarları", Icons.Outlined.Layers))
         ),
         SurveySection(
             title = "Gelişmiş Ölçüm",
@@ -731,10 +1010,7 @@ fun SurveyMainScreen() {
     )
     SectionedSurveyMenu(sections = sections) { menuItem ->
         when (menuItem.title) {
-            "Nokta Aplikasyonu" -> {
-                val intent = Intent(context, PointApplicationActivity::class.java)
-                context.startActivity(intent)
-            }
+            "Nokta Aplikasyonu" -> context.safeStart(PointApplicationActivity::class.java, "Nokta Aplikasyonu")
             "GIS Veri" -> context.safeStart(GisDataCollectionActivity::class.java, "GIS Veri")
             "Katman Ayarları" -> context.safeStart(LayerSettingsActivity::class.java, "Katman Ayarları")
             "AR Aplikasyon" -> context.safeStart(ARApplicationActivity::class.java, "AR Aplikasyon")
@@ -742,13 +1018,12 @@ fun SurveyMainScreen() {
             "Statik Ölçüm" -> context.safeStart(StaticSurveyActivity::class.java, "Statik Ölçüm")
             "Epoch Ölçüm" -> context.safeStart(EpochSurveyActivity::class.java, "Epoch Ölçüm")
             "Yol Aplikasyonu" -> context.safeStart(RoadStakeoutActivity::class.java, "Yol Aplikasyonu")
-            "CAD" -> context.safeStart(com.example.tugis3.ui.cad.CadApplicationActivity::class.java, "CAD")
+            "CAD" -> context.safeStart(CadApplicationActivity::class.java, "CAD")
             else -> context.safeStart(PlaceholderActivity::class.java, menuItem.title)
         }
     }
 }
 
-// Yeni: ToolsMainScreen (kılavuzdaki 6. bölüm araçları için)
 @Composable
 fun ToolsMainScreen() {
     val context = LocalContext.current
@@ -779,10 +1054,7 @@ fun ToolsMainScreen() {
             "Hesap Makinesi" -> context.safeStart(CalculatorActivity::class.java, mi.title)
             "Dış Radyo" -> context.safeStart(ExternalRadioConfigActivity::class.java, mi.title)
             "Periyodik Offset" -> context.safeStart(PeriodicOffsetActivity::class.java, mi.title)
-            "FTP Paylaşım" -> {
-                val intent = android.content.Intent(context, FtpSharedDataActivity::class.java)
-                context.startActivity(intent)
-            }
+            "FTP Paylaşım" -> context.safeStart(FtpSharedDataActivity::class.java, mi.title)
             "Grid -> Arazi" -> context.safeStart(GridToGroundActivity::class.java, mi.title)
             "Veri Paylaşımı" -> context.safeStart(DataSharingActivity::class.java, mi.title)
             else -> context.safeStart(PlaceholderActivity::class.java, mi.title)
@@ -790,90 +1062,17 @@ fun ToolsMainScreen() {
     }
 }
 
-// Bölümlenmiş Survey menü veri modeli
-data class SurveySection(val title: String, val items: List<MenuItem>)
-
-@Composable
-private fun SectionedSurveyMenu(
-    sections: List<SurveySection>,
-    onLaunch: (MenuItem) -> Unit
-) {
-    // LazyColumn yerine normal Column kullanarak, içerideki grid'lerin sonsuz yükseklik constraint almasını engelliyoruz
-    androidx.compose.foundation.lazy.LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        sections.forEach { section ->
-            item(key = section.title + "_header") {
-                Text(
-                    section.title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
-                )
-                HorizontalDivider()
-            }
-            item(key = section.title + "_items") {
-                Spacer(Modifier.height(4.dp))
-                // LazyVerticalGrid yerine normal Column ve Row yapısı kullanıyoruz
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Items'ları ikişer ikişer grupluyoruz
-                    section.items.chunked(2).forEach { rowItems ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            rowItems.forEach { mi ->
-                                ElevatedCard(
-                                    onClick = { onLaunch(mi) },
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(12.dp),
-                                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                                        horizontalAlignment = Alignment.Start
-                                    ) {
-                                        Icon(mi.icon, contentDescription = mi.title)
-                                        Text(
-                                            mi.title,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Medium
-                                        )
-                                    }
-                                }
-                            }
-                            // Eğer tek sayıda item varsa, boş space ekle
-                            if (rowItems.size == 1) {
-                                Spacer(modifier = Modifier.weight(1f))
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        item { Spacer(Modifier.height(24.dp)) }
-    }
-}
-
-// Context extension: güvenli activity başlatma
+// Context extension fonksiyonları
 fun Context.safeStart(target: Class<*>, title: String? = null) {
     try {
-        val intent = android.content.Intent(this, target)
+        val intent = Intent(this, target)
         if (title != null) intent.putExtra(PlaceholderActivity.EXTRA_TITLE, title)
         startActivity(intent)
     } catch (e: Exception) {
-        // Hata logla (örn ActivityNotFoundException, Hilt initialization vb.)
         runCatching { CrashLogger.logException(this, e) }
-        val pi = android.content.Intent(this, PlaceholderActivity::class.java)
+        val pi = Intent(this, PlaceholderActivity::class.java)
         pi.putExtra(PlaceholderActivity.EXTRA_TITLE, title ?: target.simpleName)
-        pi.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        pi.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         startActivity(pi)
     }
 }

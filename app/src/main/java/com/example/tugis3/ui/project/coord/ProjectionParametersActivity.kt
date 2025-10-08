@@ -221,6 +221,9 @@ private fun parseProjectionCsvValidated(raw:String): ProjectionCatalog {
     val defs = mutableListOf<ProjectionDefinition>()
     dataLines.forEachIndexed { idx, line ->
         val parts = line.split(',')
+        // Header tespiti (Çince sütun adları veya bilinen başlıklar)
+        val maybeHeader = parts.getOrNull(1)?.contains("名称") == true || parts.getOrNull(2)?.contains("椭球") == true || parts.firstOrNull()?.contains("国家") == true
+        if (maybeHeader) return@forEachIndexed
         if (parts.size < 13) {
             warnings += "Satır ${idx+1}: sütun sayısı yetersiz (${parts.size})"
         } else {
@@ -311,7 +314,6 @@ private fun ProjectionRow(
 @Composable
 private fun ProjectionParametersScreen(vm: ProjectionParametersViewModel, onBack: () -> Unit) {
     val (state, _) = vm.uiState.collectAsState().value
-    val favoriteKeys by vm.favoriteKeys.collectAsState()
     var zone by remember(state.utmZone) { mutableStateOf(state.utmZone) }
     var epsg by remember(state.epsg) { mutableStateOf(state.epsg) }
     var north by remember(state.northHemisphere) { mutableStateOf(state.northHemisphere) }
@@ -335,26 +337,32 @@ private fun ProjectionParametersScreen(vm: ProjectionParametersViewModel, onBack
     val k0 = 0.9996
 
     // CSV yükleme sade
-    val catalogResult = remember {
+    val rawCatalogResult = remember(context) {
         runCatching {
-            val text = try {
-                context.assets.open("Projeksions.csv").use { it.reader(Charsets.UTF_8).readText() }
-            } catch (_: Exception) {
-                try {
-                    val fileStream = File(context.filesDir.parentFile?.parentFile, "Projeksions.csv").takeIf { it.exists() }?.readText()
-                    fileStream ?: ""
-                } catch (_: Exception) { "" }
+            val baseText = try { context.assets.open("Projeksions.csv").use { it.reader(Charsets.UTF_8).readText() } } catch (_: Exception) {
+                try { File(context.filesDir.parentFile?.parentFile, "Projeksions.csv").takeIf { it.exists() }?.readText().orEmpty() } catch (_: Exception) { "" }
             }
-            parseProjectionCsvValidated(text)
+            val baseCat = parseProjectionCsvValidated(baseText)
+            val extraText = try { context.assets.open("AdditionalProjections.csv").use { it.reader(Charsets.UTF_8).readText() } } catch (_: Exception) { "" }
+            val extraCat = if (extraText.isNotBlank()) parseProjectionCsvValidated(extraText) else ProjectionCatalog(emptyList(), emptyList())
+            val normalizedBase = baseCat.list.map { d ->
+                val c = d.country?.trim().orEmpty()
+                val norm = when {
+                    c.startsWith("USA COUNTY") -> "USA"
+                    c.equals("US", true) -> "USA"
+                    else -> c
+                }
+                if (norm == d.country) d else d.copy(country = norm)
+            }
+            val normalizedExtra = extraCat.list.map { d -> d.copy(country = d.country?.trim()) }
+            ProjectionCatalog(normalizedBase + normalizedExtra, baseCat.warnings + extraCat.warnings)
         }.getOrElse { ProjectionCatalog(emptyList(), listOf("Okuma hatası: ${it.message}")) }
     }
-    val definitions = catalogResult.list
-
+    val catalogResult = rawCatalogResult
     var showImportDialog by remember { mutableStateOf(false) }
     var importText by remember { mutableStateOf("") }
     var importError by remember { mutableStateOf<String?>(null) }
     var menuExpanded by remember { mutableStateOf(false) }
-
     val customDefsFile = remember { File(context.filesDir, "custom_projections.json") }
     val customDefs = remember {
         mutableStateListOf<ProjectionDefinition>().apply {
@@ -364,7 +372,7 @@ private fun ProjectionParametersScreen(vm: ProjectionParametersViewModel, onBack
     }
     fun persistCustom() { runCatching { writeCustomDefinitions(customDefsFile, customDefs) } }
     var loadedLimit by remember { mutableStateOf(300) }
-    val baseDefinitions = remember(definitions, customDefs) { (definitions + customDefs).take(loadedLimit) }
+    val allDefinitions = remember(catalogResult.list, customDefs, loadedLimit) { (catalogResult.list + customDefs).take(loadedLimit) }
     var filter by remember { mutableStateOf("") }
 
     fun exportProjections(): File? {
@@ -372,7 +380,7 @@ private fun ProjectionParametersScreen(vm: ProjectionParametersViewModel, onBack
         val time = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
         val outFile = File(context.filesDir, "projection_export_${time}.json")
         val current = vm.uiState.value.first
-        val favoritesMap = baseDefinitions.associateBy { defKey(it) }
+        val favoritesMap = allDefinitions.associateBy { defKey(it) }
         val favorites = vm.favoriteKeys.value.mapNotNull { favoritesMap[it] }
         val exportObj = mapOf(
             "currentProjectProjection" to mapOf(
@@ -421,7 +429,7 @@ private fun ProjectionParametersScreen(vm: ProjectionParametersViewModel, onBack
             if (obj.has("customDefinitions")) obj.getAsJsonArray("customDefinitions").forEach { el -> toDef(el)?.let { added += it } }
             toDef(element)?.let { added += it }
         }
-        val existingKeys = (definitions + customDefs).map { defKey(it) }.toMutableSet()
+        val existingKeys = (allDefinitions).map { defKey(it) }.toMutableSet()
         var count = 0
         added.forEach { d -> val k = defKey(d); if (k !in existingKeys) { customDefs += d; existingKeys += k; count++ } }
         if (count > 0) {
@@ -643,19 +651,20 @@ private fun ProjectionParametersScreen(vm: ProjectionParametersViewModel, onBack
         AlertDialog(
             onDismissRequest = { showCatalog = false },
             confirmButton = { TextButton(onClick = { showCatalog = false }) { Text("Kapat") } },
-            title = { Text("Projeksiyon Kataloğu (${definitions.size})") },
+            title = { Text("Projeksiyon Kataloğu (${allDefinitions.size})") },
             text = {
                 var catalogTab by remember { mutableStateOf(0) }
                 var expandedCountry by remember { mutableStateOf<String?>(null) }
                 var expandedEllipsoid by remember { mutableStateOf<String?>(null) }
-                val favoritesDefs = remember(definitions, favoriteKeys) {
-                    val keyMap = definitions.associateBy { defKey(it) }
+                val favoriteKeys by vm.favoriteKeys.collectAsState()
+                val favoritesDefs = remember(allDefinitions, favoriteKeys) {
+                    val keyMap = allDefinitions.associateBy { defKey(it) }
                     favoriteKeys.mapNotNull { keyMap[it] }
                 }
-                val countries = remember(definitions) { definitions.mapNotNull { it.country?.takeIf { c -> c.isNotBlank() } }.distinct().sorted() }
-                val ellipsoids = remember(definitions) { definitions.mapNotNull { it.ellipsoidName?.takeIf { e -> e.isNotBlank() } }.distinct().sorted() }
-                val defsByCountry = remember(definitions) { definitions.groupBy { it.country.orEmpty() } }
-                val defsByEllipsoid = remember(definitions) { definitions.groupBy { it.ellipsoidName.orEmpty() } }
+                val countries = remember(allDefinitions) { allDefinitions.mapNotNull { it.country?.takeIf { c -> c.isNotBlank() } }.distinct().sorted() }
+                val ellipsoids = remember(allDefinitions) { allDefinitions.mapNotNull { it.ellipsoidName?.takeIf { e -> e.isNotBlank() } }.distinct().sorted() }
+                val defsByCountry = remember(allDefinitions) { allDefinitions.groupBy { it.country.orEmpty() } }
+                val defsByEllipsoid = remember(allDefinitions) { allDefinitions.groupBy { it.ellipsoidName.orEmpty() } }
                 val hasFavorites = favoritesDefs.isNotEmpty()
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (catalogResult.warnings.isNotEmpty()) {
@@ -698,13 +707,9 @@ private fun ProjectionParametersScreen(vm: ProjectionParametersViewModel, onBack
                     }
                     val toggleFav: (ProjectionDefinition) -> Unit = { d -> vm.toggleFavorite(defKey(d)) }
                     when {
-                        definitions.isEmpty() -> {
-                            Text("Katalog boş veya yüklenemedi", style = MaterialTheme.typography.bodyMedium)
-                        }
+                        allDefinitions.isEmpty() -> Text("Katalog boş veya yüklenemedi", style = MaterialTheme.typography.bodyMedium)
                         hasFavorites && effectiveIndex == 0 -> {
-                            if (favoritesDefs.isEmpty()) {
-                                Text("Henüz favori yok", style = MaterialTheme.typography.labelSmall)
-                            } else {
+                            if (favoritesDefs.isEmpty()) Text("Henüz favori yok", style = MaterialTheme.typography.labelSmall) else {
                                 val favFiltered = favoritesDefs.filter { def ->
                                     filter.isBlank() || (def.name ?: "").contains(filter, true) || (def.country ?: "").contains(filter, true)
                                 }
@@ -758,7 +763,6 @@ private fun ProjectionParametersScreen(vm: ProjectionParametersViewModel, onBack
             }
         )
     }
-
     if (showImportDialog) {
         AlertDialog(
             onDismissRequest = { showImportDialog = false },

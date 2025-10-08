@@ -324,6 +324,48 @@
             android:theme="@style/Theme.Tugis3"
             android:launchMode="singleTop" />
 
+        <!-- Koordinat Parametre Aktiviteleri (Eksik Olanlar Eklendi) -->
+        <activity
+            android:name=".ui.project.coord.ItrfParametersActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+        <activity
+            android:name=".ui.project.coord.SevenParamsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+        <activity
+            android:name=".ui.project.coord.FourParamsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+        <activity
+            android:name=".ui.project.coord.VerticalControlParametersActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+        <activity
+            android:name=".ui.project.coord.VerticalAdjustmentParametersActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+        <activity
+            android:name=".ui.project.coord.GridFileActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+        <activity
+            android:name=".ui.project.coord.GeoidFileActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+        <activity
+            android:name=".ui.project.coord.LocalOffsetsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+
     </application>
 
 </manifest>

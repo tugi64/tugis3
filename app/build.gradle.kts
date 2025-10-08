@@ -124,6 +124,7 @@ dependencies {
     // Maps
     implementation(libs.play.services.maps)
     implementation(libs.androidx.maps.compose)
+    implementation(libs.maps.utils.ktx)
 
     // Hilt (KSP)
     implementation(libs.hilt.android)

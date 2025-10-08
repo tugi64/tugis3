@@ -16,8 +16,8 @@
           <value>
             <PendingDiffInfo>
               <option name="filePath" value="$PROJECT_DIR$/app/src/main/res/xml/file_paths.xml" />
-              <option name="originalContent" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;&#10;&lt;paths xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;&gt;&#10;    &lt;files-path name=&quot;internal_files&quot; path=&quot;.&quot; /&gt;&#10;    &lt;cache-path name=&quot;cache&quot; path=&quot;.&quot; /&gt;&#10;&lt;/paths&gt;&#10;" />
-              <option name="updatedContent" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;&#10;&lt;paths xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;&gt;&#10;    &lt;files-path name=&quot;internal_files&quot; path=&quot;.&quot; /&gt;&#10;    &lt;cache-path name=&quot;cache&quot; path=&quot;.&quot; /&gt;&#10;&lt;/paths&gt;&#10;" />
+              <option name="originalContent" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;&#10;&lt;paths xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;&gt;&#10;    &lt;!-- GeoJSON export dosyaları (filesDir/exports) --&gt;&#10;    &lt;files-path name=&quot;exports&quot; path=&quot;exports/&quot; /&gt;&#10;&lt;/paths&gt;&#10;" />
+              <option name="updatedContent" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;&#10;&lt;paths xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;&gt;&#10;    &lt;!-- GeoJSON export dosyaları (filesDir/exports) --&gt;&#10;    &lt;files-path name=&quot;exports&quot; path=&quot;exports/&quot; /&gt;&#10;&lt;/paths&gt;&#10;" />
             </PendingDiffInfo>
           </value>
         </entry>

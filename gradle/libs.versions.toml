@@ -32,6 +32,7 @@ ktlintGradle = "12.1.1"
 composeCompiler = "1.7.2"
 datastore = "1.1.1"
 mapsCompose = "4.4.1"
+mapsUtils = "5.1.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -79,6 +80,7 @@ firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashly
 firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }
 leakcanary = { group = "com.squareup.leakcanary", name = "leakcanary-android", version.ref = "leakCanary" }
 androidx-maps-compose = { group = "com.google.maps.android", name = "maps-compose", version.ref = "mapsCompose" }
+maps-utils-ktx = { group = "com.google.maps.android", name = "maps-utils-ktx", version.ref = "mapsUtils" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

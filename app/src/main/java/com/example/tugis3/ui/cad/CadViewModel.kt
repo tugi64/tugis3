@@ -1,3 +1,4 @@
+@file:Suppress("unused")
 package com.example.tugis3.ui.cad
 
 import android.app.Application
@@ -28,14 +29,14 @@ import kotlin.math.*
 @HiltViewModel
 class CadViewModel @Inject constructor(
     private val repo: CadRepository,
-    private val app: Application, // ileride gerekirse
+    private val app: Application,
     private val projectRepo: ProjectRepository,
     private val surveyPointRepo: SurveyPointRepository,
     private val gnssEngine: GnssEngine,
     private val cadStore: CadPersistenceRepository
 ) : ViewModel() {
 
-    // ---------- Ölçüm / Pick ----------
+    // -------- Pick / Measure --------
     private val _pickedPoints = MutableStateFlow<List<Point>>(emptyList())
     val pickedPoints: StateFlow<List<Point>> = _pickedPoints
     private val _status = MutableStateFlow("")
@@ -44,13 +45,13 @@ class CadViewModel @Inject constructor(
     private val _mode = MutableStateFlow(MeasurementMode.DISTANCE)
     val mode: StateFlow<MeasurementMode> = _mode
 
-    // ---------- Layer filtresi ----------
+    // -------- Layers --------
     private val _layers = MutableStateFlow<List<String>>(emptyList())
     val layers: StateFlow<List<String>> = _layers
     private val _activeLayers = MutableStateFlow<Set<String>>(emptySet())
     val activeLayers: StateFlow<Set<String>> = _activeLayers
 
-    // ---------- Snap & Grid ----------
+    // -------- Snap (Pixel) & Grid --------
     private val _snapEnabled = MutableStateFlow(false)
     val snapEnabled: StateFlow<Boolean> = _snapEnabled
     private val _snapTolerancePx = MutableStateFlow(24)
@@ -59,12 +60,35 @@ class CadViewModel @Inject constructor(
     private val _gridVisible = MutableStateFlow(true)
     val gridVisible: StateFlow<Boolean> = _gridVisible
 
-    // ---------- Selection ----------
+    // -------- Dynamic Snap --------
+    private val _dynamicSnap = MutableStateFlow(false)
+    val dynamicSnap: StateFlow<Boolean> = _dynamicSnap
+    private val _lastZoom = MutableStateFlow(18f)
+    val lastZoom: StateFlow<Float> = _lastZoom
+    private val _effectiveSnapTolerancePx = MutableStateFlow(24)
+    val effectiveSnapTolerancePx: StateFlow<Int> = _effectiveSnapTolerancePx
+
+    // -------- World Snap (Model Space) --------
+    private val _snapWorldMode = MutableStateFlow(false)
+    val snapWorldMode: StateFlow<Boolean> = _snapWorldMode
+    private val worldSnapPreset = doubleArrayOf(0.5,1.0,2.0,5.0,10.0)
+    private val _snapWorldToleranceM = MutableStateFlow(1.0)
+    val snapWorldToleranceM: StateFlow<Double> = _snapWorldToleranceM
+
+    // -------- Cluster --------
+    data class Cluster(val center: Point, val members: List<CadPoint>)
+    private val _clusterEnabled = MutableStateFlow(false)
+    val clusterEnabled: StateFlow<Boolean> = _clusterEnabled
+    private val _clusters = MutableStateFlow<List<Cluster>>(emptyList())
+    val clusters: StateFlow<List<Cluster>> = _clusters
+    private val clusterBaseRadiusM = 20.0
+
+    // -------- Selection --------
     private val _selectionMode = MutableStateFlow(false)
     val selectionMode: StateFlow<Boolean> = _selectionMode
     private val _selectedId = MutableStateFlow<Long?>(null)
 
-    // ---------- Proje / Entity akışları ----------
+    // -------- Project / Entities --------
     private val activeProject = projectRepo.observeActiveProject()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -97,7 +121,7 @@ class CadViewModel @Inject constructor(
     val observation: StateFlow<GnssObservation?> = gnssEngine.observation
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    // ---------- Stakeout State ----------
+    // -------- Stakeout --------
     data class CadStakeoutState(
         val hasFix: Boolean = false,
         val fixLabel: String? = null,
@@ -116,15 +140,28 @@ class CadViewModel @Inject constructor(
     private val _stakeout = MutableStateFlow(CadStakeoutState())
     val stakeout: StateFlow<CadStakeoutState> = _stakeout
 
-    // ---------- Init ----------
+    // -------- Undo / Redo (picked points) --------
+    private val undoStack = ArrayDeque<List<Point>>()
+    private val redoStack = ArrayDeque<List<Point>>()
+    private val _undoDepth = MutableStateFlow(0)
+    val undoDepth: StateFlow<Int> = _undoDepth
+    private val _redoDepth = MutableStateFlow(0)
+    val redoDepth: StateFlow<Int> = _redoDepth
+
+    // -------- Init --------
     init {
         viewModelScope.launch { entities.collect { refreshLayersFromEntities(it) } }
         loadSampleIfEmpty()
         startGnss()
         observeStakeout()
+        // Cluster güncellemeleri
+        viewModelScope.launch {
+            combine(entities, _lastZoom, _clusterEnabled) { ents, _, enabled -> ents to enabled }
+                .collect { (ents, enabled) -> if (enabled) recomputeClusters(ents) }
+        }
     }
 
-    // ---------- Layers ----------
+    // -------- Layer Ops --------
     private fun refreshLayersFromEntities(list: List<CadEntity>) {
         val ls = list.map { it.layer }.distinct().sorted()
         _layers.value = ls
@@ -133,7 +170,7 @@ class CadViewModel @Inject constructor(
     fun setAllLayers(enableAll: Boolean) { _activeLayers.value = if (enableAll) _layers.value.toSet() else emptySet() }
     fun toggleLayer(layer: String) { _activeLayers.value = _activeLayers.value.let { if (layer in it) it - layer else it + layer } }
 
-    // ---------- Sample Data ----------
+    // -------- Sample Data --------
     private fun loadSampleIfEmpty() { viewModelScope.launch(Dispatchers.IO) {
         try {
             val proj = activeProject.value ?: return@launch
@@ -147,15 +184,18 @@ class CadViewModel @Inject constructor(
         } catch (_: Exception) {}
     } }
     fun loadSample() = loadSampleIfEmpty()
-
     private suspend fun addEntityPersist(entity: CadEntity) { try { val proj = activeProject.value ?: return; cadStore.addEntity(proj.id, entity) } catch (_: Exception) {} }
 
-    // ---------- Selection ----------
+    // -------- Selection --------
     fun toggleSelectionMode() { _selectionMode.value = !_selectionMode.value; if (!_selectionMode.value) _selectedId.value = null }
     fun selectEntity(e: CadEntity?) { if (e==null) { _selectedId.value = null; return }; _selectedId.value = cadItems.value.firstOrNull { it.entity == e }?.id }
     fun deleteSelectedEntity() { val id = _selectedId.value ?: return; viewModelScope.launch { cadStore.deleteEntity(id); _selectedId.value = null } }
 
-    // ---------- GNSS & Transform ----------
+    // Yeni eklenen yardımcılar
+    fun toggleMode() { _mode.value = if (_mode.value == MeasurementMode.DISTANCE) MeasurementMode.AREA else MeasurementMode.DISTANCE }
+    fun toggleGrid() { _gridVisible.value = !_gridVisible.value }
+
+    // -------- GNSS / Transform --------
     private fun startGnss() { gnssEngine.start() }
     fun stopGnss() { gnssEngine.stop() }
     fun localToLatLon(e: Double, n: Double) = runCatching { activeProject.value?.let { ProjectionEngine.forProject(it).inverse(e,n) } }.getOrNull()
@@ -231,22 +271,80 @@ class CadViewModel @Inject constructor(
         return (x1 + t*dx) to (y1 + t*dy)
     }
 
-    // ---------- Pick / Measure ----------
-    fun addPicked(p: Point) { _pickedPoints.value = _pickedPoints.value + p }
-    fun removePoint(index: Int) { val cur = _pickedPoints.value.toMutableList(); if (index in cur.indices) { cur.removeAt(index); _pickedPoints.value = cur } }
-    fun clearPicked() { _pickedPoints.value = emptyList() }
-    private fun Point.distanceTo(o: Point) = hypot(o.x - x, o.y - y)
-    fun totalDistance(): Double { val pts = _pickedPoints.value; var d = 0.0; for (i in 1 until pts.size) d += pts[i-1].distanceTo(pts[i]); return d }
+    // -------- Pick Ops --------
+    fun addPicked(p: Point) { pushUndo(); redoStack.clear(); _redoDepth.value = 0; _pickedPoints.value = _pickedPoints.value + p }
+    fun removePoint(index: Int) { val cur = _pickedPoints.value.toMutableList(); if (index in cur.indices) { pushUndo(); redoStack.clear(); _redoDepth.value = 0; cur.removeAt(index); _pickedPoints.value = cur } }
+    fun clearPicked() { if (_pickedPoints.value.isNotEmpty()) { pushUndo(); redoStack.clear(); _redoDepth.value = 0; _pickedPoints.value = emptyList() } }
+    fun totalDistance(): Double { val pts = _pickedPoints.value; var d=0.0; for(i in 1 until pts.size) d += hypot(pts[i].x-pts[i-1].x, pts[i].y-pts[i-1].y); return d }
     fun polygonArea(): Double = com.example.tugis3.core.cad.geom.polygonArea(_pickedPoints.value)
-    fun toggleMode() { _mode.value = if (_mode.value==MeasurementMode.DISTANCE) MeasurementMode.AREA else MeasurementMode.DISTANCE }
-    fun undoLast() { val cur = _pickedPoints.value; if (cur.isNotEmpty()) _pickedPoints.value = cur.dropLast(1) }
+    fun undoLast() = undoPicked(); fun redoLast() = redoPicked()
 
-    // ---------- Snap / Grid ----------
+    // -------- Undo / Redo internal --------
+    private fun pushUndo() { undoStack.addLast(_pickedPoints.value.toList()); _undoDepth.value = undoStack.size }
+    private fun pushRedo(snapshot: List<Point>) { redoStack.addLast(snapshot); _redoDepth.value = redoStack.size }
+    fun undoPicked() {
+        if (undoStack.isEmpty()) return
+        val cur = _pickedPoints.value
+        val prev = undoStack.removeLast()
+        pushRedo(cur)
+        _pickedPoints.value = prev
+        _undoDepth.value = undoStack.size
+    }
+    fun redoPicked() {
+        if (redoStack.isEmpty()) return
+        val cur = _pickedPoints.value
+        val next = redoStack.removeLast()
+        undoStack.addLast(cur)
+        _pickedPoints.value = next
+        _undoDepth.value = undoStack.size
+        _redoDepth.value = redoStack.size
+    }
+
+    // -------- Snap Helpers --------
     fun toggleSnap() { _snapEnabled.value = !_snapEnabled.value }
-    fun cycleSnapTolerance() { val cur = _snapTolerancePx.value; val idx = snapPreset.indexOf(cur).takeIf { it>=0 } ?: 0; _snapTolerancePx.value = snapPreset[(idx+1)%snapPreset.size] }
-    fun toggleGrid() { _gridVisible.value = !_gridVisible.value }
+    fun cycleSnapTolerance() { val cur = _snapTolerancePx.value; val idx = snapPreset.indexOf(cur).takeIf { it>=0 } ?: -1; _snapTolerancePx.value = if (idx==-1) snapPreset.first() else snapPreset[(idx+1)%snapPreset.size]; recomputeEffectiveSnap() }
+    fun toggleDynamicSnap() { _dynamicSnap.value = !_dynamicSnap.value; recomputeEffectiveSnap() }
+    fun updateZoom(z: Float) { _lastZoom.value = z; recomputeEffectiveSnap(); if (_clusterEnabled.value) recomputeClusters(entities.value) }
+    private fun recomputeEffectiveSnap() {
+        if (_snapWorldMode.value) { _effectiveSnapTolerancePx.value = _snapTolerancePx.value; return }
+        _effectiveSnapTolerancePx.value = if (_dynamicSnap.value) {
+            val z = _lastZoom.value.coerceIn(3f, 23f)
+            val factor = (18f / z).coerceIn(0.4f, 3f)
+            (_snapTolerancePx.value * factor).roundToInt().coerceIn(4, 96)
+        } else _snapTolerancePx.value
+    }
 
-    // ---------- Export Picked ----------
+    // -------- World Snap Helpers --------
+    fun toggleSnapWorldMode() { _snapWorldMode.value = !_snapWorldMode.value; recomputeEffectiveSnap() }
+    fun cycleSnapWorldTolerance() { val cur = _snapWorldToleranceM.value; val idx = worldSnapPreset.indexOfFirst { it==cur }.takeIf { it>=0 } ?: 0; _snapWorldToleranceM.value = worldSnapPreset[(idx+1)%worldSnapPreset.size] }
+
+    // -------- Cluster Ops --------
+    fun toggleCluster() { _clusterEnabled.value = !_clusterEnabled.value; if (!_clusterEnabled.value) _clusters.value = emptyList() else recomputeClusters(entities.value) }
+    private fun clusterRadiusMeters(): Double { val z = _lastZoom.value; val exp = (14f - z).coerceIn(-5f,5f); return clusterBaseRadiusM * 2.0.pow(exp.toDouble()) }
+    fun currentClusterRadiusMeters(): Double = clusterRadiusMeters()
+    private fun recomputeClusters(ents: List<CadEntity>) {
+        val points = ents.filterIsInstance<CadPoint>()
+        if (points.isEmpty()) { _clusters.value = emptyList(); return }
+        val radius = clusterRadiusMeters()
+        val remaining = points.toMutableList()
+        val out = mutableListOf<Cluster>()
+        while (remaining.isNotEmpty()) {
+            val seed = remaining.removeAt(0)
+            val members = mutableListOf(seed)
+            val it = remaining.iterator()
+            while (it.hasNext()) {
+                val p = it.next()
+                val d = hypot(p.position.x - seed.position.x, p.position.y - seed.position.y)
+                if (d <= radius) { members += p; it.remove() }
+            }
+            val cx = members.map { it.position.x }.average()
+            val cy = members.map { it.position.y }.average()
+            out += Cluster(Point(cx,cy), members)
+        }
+        _clusters.value = out
+    }
+
+    // -------- Export Picked --------
     fun exportPicked(context: android.content.Context): Result<File> = runCatching {
         val pts = _pickedPoints.value; require(pts.isNotEmpty()) { "Nokta yok" }
         val dir = File(context.filesDir, "cad_exports").apply { mkdirs() }
@@ -299,22 +397,18 @@ class CadViewModel @Inject constructor(
         append("0\nENDSEC\n0\nEOF")
     }
 
-    // ---------- Entity Add Helpers ----------
+    // -------- Entity Add / Import / Export All --------
     fun addLine(p1: Point, p2: Point, layer: String = "0") { viewModelScope.launch { addEntityPersist(CadLine(p1,p2,layer=layer)) } }
     fun addCircle(c: Point, r: Double, layer: String = "0") { viewModelScope.launch { addEntityPersist(CadCircle(c,r,layer=layer)) } }
     fun addText(p: Point, text: String, h: Double = 2.5, layer: String = "0") { viewModelScope.launch { addEntityPersist(CadText(p,h,text,layer=layer)) } }
     fun addPolyline(points: List<Point>, closed: Boolean, layer: String = "0") { viewModelScope.launch { addEntityPersist(CadPolyline(points,isClosed=closed,layer=layer)) } }
-
-    // DXF import
     fun loadFromUri(resolver: android.content.ContentResolver, uri: android.net.Uri) { viewModelScope.launch(Dispatchers.IO) {
         val proj = activeProject.value ?: return@launch
         val ents = runCatching { repo.loadDxf(resolver, uri) }.getOrElse { emptyList() }
         ents.forEach { cadStore.addEntity(proj.id, it) }
         _status.value = "Imported ${ents.size} entities"
     } }
-
     fun undoEntityLast() { val last = cadItems.value.maxByOrNull { it.id }?.id ?: return; viewModelScope.launch { cadStore.deleteEntity(last) } }
-
     fun exportAllGeoJson(context: android.content.Context, circleSegments: Int = 64, arcSegAngle: Double = 10.0): Result<File> = runCatching {
         val ents = entities.value; require(ents.isNotEmpty()) { "Entity yok" }
         val dir = File(context.filesDir, "cad_exports").apply { mkdirs() }
@@ -323,6 +417,7 @@ class CadViewModel @Inject constructor(
         val json = CadExportUtil.toGeoJson(ents, CadExportUtil.Options(circleSegments, arcSegAngle))
         f.writeText(json); f }
 
+    // -------- Stake Save --------
     fun saveStakePoint(): Boolean {
         val st = _stakeout.value
         if (!st.hasFix || st.targetE==null || st.targetN==null || !st.canSave) return false
@@ -354,6 +449,15 @@ class CadViewModel @Inject constructor(
         return true
     }
 
+    // -------- Polygon Net Area --------
+    fun polygonNetArea(rings: List<List<Point>>): Double {
+        if (rings.isEmpty()) return 0.0
+        val outer = com.example.tugis3.core.cad.geom.polygonArea(rings.first())
+        val holes = rings.drop(1).sumOf { abs(com.example.tugis3.core.cad.geom.polygonArea(it)) }
+        return outer - holes
+    }
+
+    // -------- Companion Utilities --------
     companion object {
         fun polylineLength(points: List<Point>) = com.example.tugis3.core.cad.geom.polylineLength(points)
         fun polygonAreaOf(points: List<Point>) = com.example.tugis3.core.cad.geom.polygonArea(points)

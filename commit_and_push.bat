@@ -1,46 +1,65 @@
 @echo off
-REM commit_and_push.bat - Tüm değişiklikleri commit edip origin/main'e push eder.
+REM commit_and_push.bat - Degisiklikleri otomatik olarak mevcut dala (master/main vs.) commit ve push eder.
 SET REPO_DIR=C:\Users\CASPER\AndroidStudioProjects\tugis3
-cd /d "%REPO_DIR%"
+cd /d "%REPO_DIR%" || (echo Repo dizinine gidilemedi & exit /b 1)
 
-echo === Repo dizinine gidiliyor: %REPO_DIR%
+echo === Repo: %REPO_DIR% ===
 
-:: Kullanıcıdan commit mesajı al (parametre yoksa default)
-if "%1"=="" (
-    set COMMIT_MSG=Add Bluetooth GNSS manager, device communication, protocols and services
+REM Commit mesaji parametre olarak verilmemisse varsayilan
+if "%~1"=="" (
+    set COMMIT_MSG=Update project changes
 ) else (
     set COMMIT_MSG=%*
 )
 
 echo Commit message: %COMMIT_MSG%
 
-:: Git durumunu göster
-git status --porcelain 2>nul || git status --porcelain
+REM Mevcut dal adini tespit et
+for /f "delims=" %%b in ('git rev-parse --abbrev-ref HEAD 2^>nul') do set CURRENT_BRANCH=%%b
+if "%CURRENT_BRANCH%"=="" (
+    echo HATA: Dal adi alinamadi (detached HEAD olabilir). Varsayilan master denenecek.
+    set CURRENT_BRANCH=master
+)
+if /I "%CURRENT_BRANCH%"=="HEAD" (
+    echo UYARI: Detached HEAD durumundasin. master dalina geciliyor.
+    git checkout master 2>nul && set CURRENT_BRANCH=master
+)
 
-:: Tüm değişiklikleri ekle ve commit yap (değişiklik yoksa bilgilendir)
+echo Aktif dal: %CURRENT_BRANCH%
+
+git status --short
+
+REM build klasorleri zaten .gitignore'da; izleme disina cikmis ama index'te kalan varsa temizle
+FOR %%P IN (app\build core\cad\build core\data\build core\ui\build build) DO (
+  if exist "%%P" (
+    git ls-files --error-unmatch %%P 1>nul 2>nul && git rm -r --cached %%P >nul 2>nul
+  )
+)
+
+REM Degisiklikleri ekle
 git add -A
-REM Eğer sahnelenmiş (staged) değişiklik varsa commit yap, yoksa bilgilendir
+
+REM Staged degisiklik var mi kontrol et
 git diff --cached --quiet
 if ERRORLEVEL 1 (
-    git commit -m "%COMMIT_MSG%"
+    git commit -m "%COMMIT_MSG%" || (echo Commit basarisiz & exit /b 1)
 ) else (
-    echo No changes to commit
+    echo Commitlenecek degisiklik yok.
 )
 
-echo Pulling remote changes and rebasing...
-git pull origin main --rebase
+echo === Uzak degisiklikler cekiliyor (rebase) ===
+git pull origin %CURRENT_BRANCH% --rebase
 if ERRORLEVEL 1 (
-    echo ERROR: 'git pull' failed. Resolve conflicts manually then run this script again.
-    pause
+    echo HATA: git pull --rebase basarisiz. Conflict varsa cozumleyip tekrar calistir.
     exit /b 1
 )
 
-echo Pushing to origin/main...
-git push origin main
+echo === Push ===
+git push origin %CURRENT_BRANCH%
 if ERRORLEVEL 1 (
-    echo ERROR: 'git push' failed. Check authentication (PAT/SSH) and remote URL.
-    pause
+    echo HATA: git push basarisiz. Kimlik dogrulama veya dal korumasi kontrol edin.
     exit /b 1
 )
-echo Done.
+
+echo Bitti. Dal: %CURRENT_BRANCH%
 pause

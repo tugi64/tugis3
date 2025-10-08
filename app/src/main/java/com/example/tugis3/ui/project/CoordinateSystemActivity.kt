@@ -22,6 +22,13 @@ import dagger.hilt.android.AndroidEntryPoint
 import android.content.Intent
 import android.content.Context
 import com.example.tugis3.ui.theme.Tugis3Theme
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.distinctUntilChanged
+import java.io.IOException
 
 @AndroidEntryPoint
 class CoordinateSystemActivity : ComponentActivity() {
@@ -34,6 +41,59 @@ class CoordinateSystemActivity : ComponentActivity() {
 }
 
 data class CoordParamItem(val title: String, val enabled: Boolean, val action: () -> Unit)
+
+private val Context.coordParamsDataStore by preferencesDataStore(name = "coord_params")
+
+@Composable
+private fun ProjectionItrfSummaryCard() {
+    val context = LocalContext.current
+    val dataFlow = remember {
+        context.coordParamsDataStore.data
+            .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+            .distinctUntilChanged()
+    }
+    val prefs by dataFlow.collectAsState(initial = emptyPreferences())
+    fun p(key: String) = prefs[stringPreferencesKey(key)] ?: ""
+    val frame = p("ProjectionParametersActivity:frame")
+        .ifBlank { p("ItrfParametersActivity:frame") }
+    val ellipsoid = p("ProjectionParametersActivity:ellipsoid")
+        .ifBlank { p("ItrfParametersActivity:ellipsoid") }
+    val dom = p("ProjectionParametersActivity:centralMeridian")
+    val epoch = p("ItrfParametersActivity:epoch")
+    val dX = p("ItrfParametersActivity:dX")
+    val dY = p("ItrfParametersActivity:dY")
+    val dZ = p("ItrfParametersActivity:dZ")
+    val scale = p("ItrfParametersActivity:scale")
+
+    val isEmpty = listOf(frame, ellipsoid, dom, epoch).all { it.isBlank() }
+
+    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Koordinat Sistem Özeti", style = MaterialTheme.typography.titleMedium)
+            if (isEmpty) {
+                Text("Henüz Projeksiyon / ITRF parametreleri girilmemiş.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                SummaryLine("Çerçeve", frame.ifBlank { "-" })
+                SummaryLine("Elipsoid", ellipsoid.ifBlank { "-" })
+                SummaryLine("DOM", dom.ifBlank { "-" })
+                SummaryLine("Epoch", epoch.ifBlank { "-" })
+                if (dX.isNotBlank() || dY.isNotBlank() || dZ.isNotBlank()) {
+                    SummaryLine("dX,dY,dZ", listOf(dX,dY,dZ).joinToString(",") { if (it.isBlank()) "-" else it })
+                }
+                if (scale.isNotBlank()) SummaryLine("Scale(ppm)", scale)
+            }
+            Text("Bu kart DataStore'dan canlı değerleri gösterir.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
+        }
+    }
+}
+
+@Composable
+private fun SummaryLine(label: String, value: String) {
+    Row(Modifier.fillMaxWidth()) {
+        Text(label + ":", modifier = Modifier.width(110.dp), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+        Text(value, style = MaterialTheme.typography.bodySmall)
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,6 +134,7 @@ private fun CoordinateSystemScreen(onNavigateEllipsoid: () -> Unit, onBack: () -
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            item { ProjectionItrfSummaryCard() }
             items(items) { item ->
                 val cardModifier = Modifier
                     .fillMaxWidth()

@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 27,
-    "identityHash": "798d10a2c633eef77e51d988fa5032af",
+    "identityHash": "a330e8b2f73216b19fe9ccde478d0fa4",
     "entities": [
       {
         "tableName": "projects",
@@ -1087,7 +1087,7 @@
       },
       {
         "tableName": "gis_features",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `projectId` INTEGER NOT NULL, `type` TEXT NOT NULL, `attr` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `projectId` INTEGER NOT NULL, `type` TEXT NOT NULL, `attr` TEXT, `layer` TEXT, `geometryJson` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -1110,6 +1110,18 @@
           {
             "fieldPath": "attr",
             "columnName": "attr",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "layer",
+            "columnName": "layer",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "geometryJson",
+            "columnName": "geometryJson",
             "affinity": "TEXT",
             "notNull": false
           },
@@ -1199,14 +1211,33 @@
             "id"
           ]
         },
-        "indices": [],
+        "indices": [
+          {
+            "name": "index_measurement_logs_createdAt",
+            "unique": false,
+            "columnNames": [
+              "createdAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_measurement_logs_createdAt` ON `${TABLE_NAME}` (`createdAt`)"
+          },
+          {
+            "name": "index_measurement_logs_projectId",
+            "unique": false,
+            "columnNames": [
+              "projectId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_measurement_logs_projectId` ON `${TABLE_NAME}` (`projectId`)"
+          }
+        ],
         "foreignKeys": []
       }
     ],
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '798d10a2c633eef77e51d988fa5032af')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a330e8b2f73216b19fe9ccde478d0fa4')"
     ]
   }
 }

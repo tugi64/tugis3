@@ -13,28 +13,138 @@
   <div id="map"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    var map = L.map('map').setView([0, 0], 2);
+    var map = L.map('map').setView([39.0, 35.0], 6);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '© OpenStreetMap'
     }).addTo(map);
 
-    // expose a function to add markers from Android
-    function addMarker(lat, lon, title) {
+    var currentMarker = null;
+    var accuracyCircle = null;
+    var trackLine = L.polyline([], {color: '#FF6F00', weight: 3});
+    var trackSegmentsGroup = L.layerGroup().addTo(map);
+    var measuredPointsLayer = L.layerGroup().addTo(map); // yeni layer
+
+    var fixColors = {
+      'RTK_FIX': '#2E7D32',
+      'RTK_FLOAT': '#FDD835',
+      'DGPS': '#0288D1',
+      'PPP': '#00897B',
+      'SINGLE': '#FB8C00',
+      'MANUAL': '#616161',
+      'NO_FIX': '#9E9E9E',
+      '': '#9E9E9E'
+    };
+
+    // Incremental segment state
+    var _tugisSegments = []; // polyline list
+    var _tugisLastFix = null;
+
+    function setOrMoveMarkerStyled(lat, lon, title, color, accuracyMeters) {
       try {
-        var marker = L.marker([lat, lon]).addTo(map);
-        if (title) marker.bindPopup(title);
-        map.setView([lat, lon], 17);
-      } catch (e) {
-        console.error(e);
-      }
+        if (currentMarker) { map.removeLayer(currentMarker); }
+        currentMarker = L.circleMarker([lat, lon], {
+          radius: 6,
+          color: color || '#1976D2',
+            fillColor: color || '#1976D2',
+            fillOpacity: 0.9,
+            weight: 2
+        }).addTo(map);
+        if (title) currentMarker.bindPopup(title);
+        if (accuracyCircle) { map.removeLayer(accuracyCircle); accuracyCircle = null; }
+        if (accuracyMeters && accuracyMeters > 0) {
+          accuracyCircle = L.circle([lat, lon], {
+            radius: accuracyMeters,
+            color: color || '#1976D2',
+            weight: 1,
+            fillOpacity: 0.15
+          }).addTo(map);
+        }
+        if (map.getZoom() < 14) { map.setView([lat, lon], 17); }
+      } catch (e) { console.error(e); }
     }
 
-    // for debugging: click to get coords
+    function updateTrack(pointsJson) { // eski basit tek renk
+      try {
+        var pts = JSON.parse(pointsJson);
+        var latlngs = pts.map(function(p){ return [p.lat, p.lon]; });
+        trackLine.setLatLngs(latlngs);
+        if (!map.hasLayer(trackLine)) trackLine.addTo(map);
+      } catch(e){ console.error('updateTrack error', e);} }
+
+    function updateTrackSegments(pointsJson) {
+      try {
+        var pts = JSON.parse(pointsJson);
+        trackSegmentsGroup.clearLayers();
+        _tugisSegments = [];
+        _tugisLastFix = null;
+        if (pts.length < 2) return;
+        var seg = [];
+        var lastFix = pts[0].fixType || '';
+        seg.push([pts[0].lat, pts[0].lon]);
+        for (var i=1;i<pts.length;i++) {
+          var f = pts[i].fixType || '';
+          seg.push([pts[i].lat, pts[i].lon]);
+          if (f !== lastFix) {
+            var poly = L.polyline(seg, { color: fixColors[lastFix] || '#9E9E9E', weight: 3 }).addTo(trackSegmentsGroup);
+            _tugisSegments.push(poly);
+            seg = [[pts[i].lat, pts[i].lon]];
+            lastFix = f;
+          }
+        }
+        if (seg.length > 1) {
+          var poly2 = L.polyline(seg, { color: fixColors[lastFix] || '#9E9E9E', weight: 3 }).addTo(trackSegmentsGroup);
+          _tugisSegments.push(poly2);
+        }
+        _tugisLastFix = lastFix;
+      } catch(e){ console.error('updateTrackSegments error', e); }
+    }
+
+    function appendTrackSegments(pointsJson) {
+      try {
+        var pts = JSON.parse(pointsJson);
+        if (pts.length < 2) return; // need at least prev last + one new
+        if (_tugisSegments.length === 0) { // fallback full build
+          updateTrackSegments(pointsJson);
+          return;
+        }
+        for (var i=1;i<pts.length;i++) { // start from 1 (0 is previous last)
+          var p = pts[i];
+          var f = p.fixType || '';
+          if (f === _tugisLastFix && _tugisSegments.length>0) {
+            // extend last polyline
+            var lastPoly = _tugisSegments[_tugisSegments.length-1];
+            lastPoly.addLatLng([p.lat, p.lon]);
+          } else {
+            // new segment
+            var poly = L.polyline([[pts[i-1].lat, pts[i-1].lon],[p.lat, p.lon]], { color: fixColors[f] || '#9E9E9E', weight: 3 }).addTo(trackSegmentsGroup);
+            _tugisSegments.push(poly);
+            _tugisLastFix = f;
+          }
+          _tugisLastFix = f;
+        }
+      } catch(e){ console.error('appendTrackSegments error', e); }
+    }
+
+    function updateMeasuredPoints(pointsJson) {
+      try {
+        measuredPointsLayer.clearLayers();
+        if (!pointsJson) return;
+        var pts = JSON.parse(pointsJson);
+        pts.forEach(function(p){
+          var m = L.circleMarker([p.lat, p.lon], { radius:5, color:'#2962FF', fillColor:'#2962FF', fillOpacity:0.85, weight:1 });
+          var label = p.name || ('P'+(p.index||''));
+          var popup = label + (p.alt ? ('<br/>h=' + p.alt) : '');
+          m.bindPopup(popup);
+          m.addTo(measuredPointsLayer);
+        });
+      } catch(e){ console.error('updateMeasuredPoints error', e); }
+    }
+
     map.on('click', function(e) {
       var c = e.latlng;
       console.log('Clicked: ' + c.lat + ',' + c.lng);
-      addMarker(c.lat, c.lng, 'Manual point');
+      setOrMoveMarkerStyled(c.lat, c.lng, 'Manual point', '#555', 0);
     });
   </script>
 </body>

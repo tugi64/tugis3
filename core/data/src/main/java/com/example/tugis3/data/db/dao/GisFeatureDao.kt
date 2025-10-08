@@ -17,5 +17,13 @@ interface GisFeatureDao {
 
     @Query("DELETE FROM gis_features WHERE projectId = :projectId")
     suspend fun clearForProject(projectId: Long)
-}
 
+    @Query("SELECT * FROM gis_features WHERE id = :id")
+    suspend fun getById(id: Long): GisFeatureEntity?
+
+    @Query("UPDATE gis_features SET geometryJson = :geometryJson, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateGeometry(id: Long, geometryJson: String, updatedAt: Long)
+
+    @Query("DELETE FROM gis_features WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<Long>)
+}

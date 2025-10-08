@@ -19,7 +19,16 @@ local.properties
 
 # Ignore Android Studio logs and settings
 .idea/
-.idea/*
 
-# Ignore build output
-/app/build/
+# Module & app build outputs (added)
+**/build/
+
+# Exports / generated (optional future)
+# /app/outputs/
+
+# Keystore (add patterns if needed)
+# *.jks
+# *.keystore
+
+# OS artifacts
+Thumbs.db

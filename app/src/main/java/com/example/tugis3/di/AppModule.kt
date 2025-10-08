@@ -2,6 +2,8 @@ package com.example.tugis3.di
 
 import android.content.Context
 import android.location.LocationManager
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.FusedLocationProviderClient
 import com.example.tugis3.gnss.GnssEngine
 import com.example.tugis3.ntrip.NtripClient
 import com.example.tugis3.ntrip.NtripClientImpl
@@ -29,4 +31,10 @@ object AppModule {
     @Provides
     @Singleton
     fun provideNtripClient(): NtripClient = NtripClientImpl()
+
+    // Google Play Services konum istemcisi
+    @Provides
+    @Singleton
+    fun provideFusedLocationProvider(@ApplicationContext ctx: Context): FusedLocationProviderClient =
+        LocationServices.getFusedLocationProviderClient(ctx)
 }

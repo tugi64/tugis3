@@ -66,6 +66,17 @@ class CadApplicationActivity : ComponentActivity() {
         setContent {
             val viewModel: CadViewModel = hiltViewModel()
             val mode by viewModel.mode.collectAsState()
+            val dynamicSnap by viewModel.dynamicSnap.collectAsState()
+            val effectiveSnap by viewModel.effectiveSnapTolerancePx.collectAsState()
+            val snapEnabled by viewModel.snapEnabled.collectAsState()
+            val selectionMode by viewModel.selectionMode.collectAsState()
+            val selectedEntity by viewModel.selectedEntity.collectAsState()
+            val hasSelection = selectedEntity != null
+            val gridVisible by viewModel.gridVisible.collectAsState()
+            val undoDepth by viewModel.undoDepth.collectAsState()
+            val redoDepth by viewModel.redoDepth.collectAsState()
+            val worldSnapMode by viewModel.snapWorldMode.collectAsState()
+            val worldSnapTol by viewModel.snapWorldToleranceM.collectAsState()
             val scope = rememberCoroutineScope()
             val context = this
             val snackbar = remember { SnackbarHostState() }
@@ -81,18 +92,27 @@ class CadApplicationActivity : ComponentActivity() {
             }
             CadScaffold(
                 mode = mode,
-                snapEnabled = viewModel.snapEnabled.collectAsState().value,
-                snapTolerance = viewModel.snapTolerancePx.collectAsState().value,
-                selectionMode = viewModel.selectionMode.collectAsState().value,
-                hasSelection = viewModel.selectedEntity.collectAsState().value != null,
-                gridVisible = viewModel.gridVisible.collectAsState().value,
+                snapEnabled = snapEnabled,
+                effectiveSnapTolerance = effectiveSnap,
+                dynamicSnap = dynamicSnap,
+                selectionMode = selectionMode,
+                hasSelection = hasSelection,
+                gridVisible = gridVisible,
                 onToggleMode = { viewModel.toggleMode() },
                 onToggleSnap = { viewModel.toggleSnap() },
                 onCycleSnapTol = { viewModel.cycleSnapTolerance() },
+                onToggleDynamicSnap = { viewModel.toggleDynamicSnap() },
                 onToggleSelectionMode = { viewModel.toggleSelectionMode() },
                 onDeleteSelected = { viewModel.deleteSelectedEntity() },
                 onToggleGrid = { viewModel.toggleGrid() },
                 onUndo = { viewModel.undoLast() },
+                onRedo = { viewModel.redoLast() },
+                undoDepth = undoDepth,
+                redoDepth = redoDepth,
+                onToggleWorldSnap = { viewModel.toggleSnapWorldMode() },
+                onCycleWorldSnapTol = { viewModel.cycleSnapWorldTolerance() },
+                worldSnapMode = worldSnapMode,
+                worldSnapTol = worldSnapTol,
                 onExport = {
                     val r = viewModel.exportPicked(context)
                     scope.launch { snackbar.showSnackbar(r.fold({"CSV: ${it.name}"},{"Hata: ${it.message}"})) }
@@ -126,17 +146,26 @@ class CadApplicationActivity : ComponentActivity() {
 private fun CadScaffold(
     mode: CadViewModel.MeasurementMode,
     snapEnabled: Boolean,
-    snapTolerance: Int,
+    effectiveSnapTolerance: Int,
+    dynamicSnap: Boolean,
     selectionMode: Boolean,
     hasSelection: Boolean,
     gridVisible: Boolean,
     onToggleMode: () -> Unit,
     onToggleSnap: () -> Unit,
     onCycleSnapTol: () -> Unit,
+    onToggleDynamicSnap: () -> Unit,
     onToggleSelectionMode: () -> Unit,
     onDeleteSelected: () -> Unit,
     onToggleGrid: () -> Unit,
     onUndo: () -> Unit,
+    onRedo: () -> Unit,
+    undoDepth: Int,
+    redoDepth: Int,
+    onToggleWorldSnap: () -> Unit,
+    onCycleWorldSnapTol: () -> Unit,
+    worldSnapMode: Boolean,
+    worldSnapTol: Double,
     onExport: () -> Unit,
     onExportGeoJson: () -> Unit,
     onExportDxf: () -> Unit,
@@ -149,14 +178,26 @@ private fun CadScaffold(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("CAD (${if (mode==CadViewModel.MeasurementMode.DISTANCE) "Mesafe" else "Alan"}${if (snapEnabled) ", Snap:${snapTolerance}px" else ""}${if (selectionMode) ", Seçim" else ""})") },
+                title = {
+                    val snapPart = if (snapEnabled) {
+                        val modeStr = if (dynamicSnap) "Dyn" else "Fix"
+                        ", Snap:${effectiveSnapTolerance}px($modeStr)"
+                    } else ""
+                    val worldSnapPart = if (worldSnapMode) ", WSnap:${"%.2f".format(worldSnapTol)}" else ""
+                    val undoInfo = if (undoDepth>0 || redoDepth>0) ", U:${undoDepth}/R:${redoDepth}" else ""
+                    Text("CAD (${if (mode==CadViewModel.MeasurementMode.DISTANCE) "Mesafe" else "Alan"}$snapPart$worldSnapPart$undoInfo${if (selectionMode) ", Seçim" else ""})")
+                },
                 actions = {
                     IconButton(onClick = onToggleMode) { Icon(Icons.Outlined.SwapHoriz, contentDescription = "Mod") }
                     IconButton(onClick = onToggleSnap) { Icon(Icons.Outlined.Anchor, contentDescription = "Snap") }
                     IconButton(onClick = onCycleSnapTol, enabled = snapEnabled) { Icon(Icons.Outlined.Tune, contentDescription = "Snap Tolerans") }
+                    IconButton(onClick = onToggleDynamicSnap, enabled = snapEnabled) { Icon(if (dynamicSnap) Icons.Outlined.GridOn else Icons.Outlined.GridOff, contentDescription = "Dinamik Snap") }
+                    IconButton(onClick = onToggleWorldSnap) { Icon(if (worldSnapMode) Icons.Outlined.SelectAll else Icons.Outlined.SelectAll, contentDescription = "World Snap") }
+                    IconButton(onClick = onCycleWorldSnapTol, enabled = worldSnapMode) { Icon(Icons.Outlined.Tune, contentDescription = "World Snap Tol") }
                     IconButton(onClick = onToggleSelectionMode) { Icon(Icons.Outlined.SelectAll, contentDescription = "Seçim Modu") }
                     IconButton(onClick = onDeleteSelected, enabled = hasSelection) { Icon(Icons.Outlined.DeleteForever, contentDescription = "Seçili Sil") }
-                    IconButton(onClick = onUndo) { Icon(Icons.Outlined.Undo, contentDescription = "Geri Al") }
+                    IconButton(onClick = onUndo, enabled = undoDepth>0) { Icon(Icons.Outlined.Undo, contentDescription = "Geri Al") }
+                    IconButton(onClick = onRedo, enabled = redoDepth>0) { Icon(Icons.Outlined.Refresh, contentDescription = "İleri Al") }
                     IconButton(onClick = onExport) { Icon(Icons.Outlined.Save, contentDescription = "CSV") }
                     IconButton(onClick = onExportGeoJson) { Icon(Icons.Outlined.Share, contentDescription = "GeoJSON") }
                     IconButton(onClick = onExportDxf) { Icon(Icons.Outlined.FolderOpen, contentDescription = "DXF Export") }

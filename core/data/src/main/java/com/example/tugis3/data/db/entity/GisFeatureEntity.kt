@@ -13,7 +13,8 @@ data class GisFeatureEntity(
     val projectId: Long,
     val type: String, // Nokta / Çizgi / Alan (şimdilik basit metin)
     val attr: String?,
+    val layer: String? = null, // Yeni: katman adı (örn. "Default", "Jeoloji", ...)
+    val geometryJson: String? = null, // Yeni: GeoJSON geometry veya internal JSON (Point/LineString/Polygon)
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )
-
