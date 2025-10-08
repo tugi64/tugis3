@@ -30,6 +30,19 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Guard deprecated artifact actions
+        run: |
+          echo "Scanning workflow files for deprecated artifact actions (v3)..." 
+          if grep -R "upload-artifact@v3" -n .github/workflows 2>/dev/null; then echo "Found upload-artifact@v3" && exit 1; fi
+          if grep -R "download-artifact@v3" -n .github/workflows 2>/dev/null; then echo "Found download-artifact@v3" && exit 1; fi
+          echo "No deprecated artifact v3 usages detected."
+
+      - name: Show current workflow (debug)
+        run: |
+          echo "---- WORKFLOW CONTENT (android-ci.yml) ----"
+          sed -n '1,160p' .github/workflows/android-ci.yml || true
+          echo "------------------------------------------"
+
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
