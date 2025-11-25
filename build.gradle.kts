@@ -35,28 +35,28 @@ subprojects {
 
             // Kotlin metadata uyumsuzluğunu çözmek için Kotlin stdlib'i sabitle
             force(
-                "org.jetbrains.kotlin:kotlin-stdlib:2.0.21",
-                "org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.0.21",
-                "org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.0.21"
+                "org.jetbrains.kotlin:kotlin-stdlib:2.2.21",
+                "org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.2.21",
+                "org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.2.21"
             )
 
             // Google Maps kütüphanelerini Kotlin 2.0.x uyumlu versiyonlara force et
             force(
                 "com.google.maps.android:maps-compose:4.3.3",
                 "com.google.maps.android:maps-utils-ktx:3.4.0",
-                "com.google.maps.android:android-maps-utils:3.8.2"
+                "com.google.maps.android:android-maps-utils:3.19.1"
             )
 
             // Coroutines sürümü sabitle
             force(
-                "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0",
-                "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0"
+                "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2",
+                "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2"
             )
 
             // OkHttp ve OkIO uyumlu sürümlerini force et
             force(
                 "com.squareup.okhttp3:okhttp:4.12.0",
-                "com.squareup.okio:okio:3.6.0"
+                "com.squareup.okio:okio:3.16.4"
             )
 
             // ÖNEMLİ: kotlinx-serialization sürümünü burada zorlamıyoruz;
