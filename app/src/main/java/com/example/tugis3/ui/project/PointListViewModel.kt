@@ -9,6 +9,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -56,6 +58,8 @@ class PointListViewModel @Inject constructor(
     }
 
     val filtered: StateFlow<List<PointEntity>> = combine(basePoints, sort) { list, s ->
+        list to s
+    }.map { (list, s) ->
         when (s) {
             SortOption.NAME_ASC -> list.sortedBy { it.name.lowercase() }
             SortOption.NAME_DESC -> list.sortedByDescending { it.name.lowercase() }
@@ -63,7 +67,8 @@ class PointListViewModel @Inject constructor(
             SortOption.NORTH_ASC -> list.sortedBy { it.northing }
             SortOption.EAST_ASC -> list.sortedBy { it.easting }
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    }.flowOn(Dispatchers.Default)
+     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun setSearch(q: String) { _search.value = q }
     fun setSort(s: SortOption) { _sort.value = s }
@@ -198,33 +203,63 @@ class PointListViewModel @Inject constructor(
         val proj = activeProject.value ?: return@launch onResult(ImportResult(0,0))
         var added = 0
         var failed = 0
-        raw.lineSequence()
-            .map { it.trim() }
-            .filter { it.isNotBlank() && !it.startsWith("#") }
-            .forEach { line ->
-                // Beklenen format: name,northing,easting[,height][,code][,desc]
-                val parts = line.split(',', ';', '\t').map { it.trim() }
-                if (parts.size < 3) { failed++; return@forEach }
-                val name = parts[0].ifBlank { "P${System.currentTimeMillis()}" }
-                val n = parts[1].replace(',', '.').toDoubleOrNull()
-                val e = parts[2].replace(',', '.').toDoubleOrNull()
-                val h = parts.getOrNull(3)?.replace(',', '.')?.toDoubleOrNull()
-                val code = parts.getOrNull(4)?.ifBlank { null }
-                val desc = parts.getOrNull(5)?.ifBlank { null }
-                if (n == null || e == null) { failed++; return@forEach }
-                pointRepo.upsert(
-                    PointEntity(
-                        projectId = proj.id,
-                        name = name,
-                        northing = n,
-                        easting = e,
-                        ellipsoidalHeight = h,
-                        featureCode = code,
-                        description = desc
-                    )
-                )
-                added++
-            }
+        withContext(Dispatchers.Default) {
+            raw.lineSequence()
+                .map { it.trim() }
+                .filter { it.isNotBlank() && !it.startsWith("#") }
+                .forEach { line ->
+                    val parts = if (line.contains(",") || line.contains(";") || line.contains("\t")) {
+                        line.split(',', ';', '\t').map { it.trim() }
+                    } else {
+                        line.split(' ').filter { it.isNotBlank() }
+                    }
+                    try {
+                        if (parts.size == 5) {
+                            val name = parts[0].ifBlank { "P${System.currentTimeMillis()}" }
+                            val n = parts[1].replace(',', '.').toDoubleOrNull()
+                            val e = parts[2].replace(',', '.').toDoubleOrNull()
+                            val h = parts[3].replace(',', '.').toDoubleOrNull()
+                            val desc = parts[4].ifBlank { null }
+                            if (n == null || e == null) { failed++; return@forEach }
+                            // DB işlemi
+                            pointRepo.upsert(
+                                PointEntity(
+                                    projectId = proj.id,
+                                    name = name,
+                                    northing = n,
+                                    easting = e,
+                                    ellipsoidalHeight = h,
+                                    featureCode = null,
+                                    description = desc
+                                )
+                            )
+                            added++
+                        } else if (parts.size >= 3) {
+                            val name = parts[0].ifBlank { "P${System.currentTimeMillis()}" }
+                            val n = parts[1].replace(',', '.').toDoubleOrNull()
+                            val e = parts[2].replace(',', '.').toDoubleOrNull()
+                            val h = parts.getOrNull(3)?.replace(',', '.')?.toDoubleOrNull()
+                            val code = parts.getOrNull(4)?.ifBlank { null }
+                            val desc = parts.getOrNull(5)?.ifBlank { null }
+                            if (n == null || e == null) { failed++; return@forEach }
+                            pointRepo.upsert(
+                                PointEntity(
+                                    projectId = proj.id,
+                                    name = name,
+                                    northing = n,
+                                    easting = e,
+                                    ellipsoidalHeight = h,
+                                    featureCode = code,
+                                    description = desc
+                                )
+                            )
+                            added++
+                        } else {
+                            failed++
+                        }
+                    } catch (_: Exception) { failed++ }
+                }
+        }
         onResult(ImportResult(added, failed))
     }
 

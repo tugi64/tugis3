@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.example.tugis3.core.cad"
-    compileSdk = 36
+    compileSdk = 35
     defaultConfig {
         minSdk = 24
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -29,3 +29,11 @@ dependencies {
 }
 
 ksp { }
+
+// IDE uyumluluğu için testClasses task alias'ı ekle
+tasks.register("testClasses") {
+    group = "build"
+    description = "Alias for IDE compatibility - compiles test classes"
+    dependsOn("compileDebugUnitTestKotlin")
+}
+

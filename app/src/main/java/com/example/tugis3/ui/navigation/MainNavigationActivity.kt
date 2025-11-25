@@ -38,6 +38,24 @@ import androidx.navigation.compose.rememberNavController
 import com.example.tugis3.ui.theme.Tugis3Theme
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.flow.collect
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.launch
+import android.widget.Toast
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+import com.example.tugis3.gnss.GnssPositionRepository
+import androidx.compose.ui.graphics.Color
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
 // Proje aktiviteleri
 import com.example.tugis3.ui.project.*
 // Cihaz aktiviteleri
@@ -48,6 +66,10 @@ import com.example.tugis3.ui.survey.*
 import com.example.tugis3.ui.cad.CadApplicationActivity
 // Tools aktiviteleri
 import com.example.tugis3.ui.tools.*
+// Settings aktiviteleri
+import com.example.tugis3.ui.settings.CrosshairSettingsActivity as SettingsCrosshairActivity
+// Analysis aktiviteleri
+import com.example.tugis3.ui.analysis.MeasurementAnalysisActivity as AnalysisMeasurementActivity
 // Ortak
 import com.example.tugis3.ui.common.PlaceholderActivity
 import com.example.tugis3.util.crash.CrashLogger
@@ -56,7 +78,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.hilt.navigation.compose.hiltViewModel // (deprecated uyarısı kalabilir, sürüm güncellenince yeni pakete taşınır)
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel // updated import
 // Eksik özel paket aktiviteleri
 import com.example.tugis3.gnss.ui.GnssMonitorActivity
 import com.example.tugis3.ntrip.NtripProfilesActivity
@@ -69,53 +91,109 @@ private object NavRoutes {
     const val TOOLS = "tools"
 }
 
+// MenuItem data class for menu items
+data class MenuItem(
+    val title: String,
+    val icon: ImageVector,
+    val color: Color,
+    val action: String
+)
+
+// NavigationItem data class for bottom navigation
+data class NavigationItem(
+    val title: String,
+    val icon: ImageVector,
+    val route: String
+)
+
 @AndroidEntryPoint
 class MainNavigationActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Önceki crash tespit edilirse log ekranını aç
-        runCatching {
-            val ts = CrashLogger.consumePendingCrash(this)
-            if (ts != null) startActivity(Intent(this, CrashLogActivity::class.java))
+
+        // Crash logger'ı background thread'de çalıştır
+        lifecycleScope.launch(Dispatchers.IO) {
+            runCatching {
+                val ts = CrashLogger.consumePendingCrash(this@MainNavigationActivity)
+                if (ts != null) {
+                    withContext(Dispatchers.Main) {
+                        startActivity(Intent(this@MainNavigationActivity, CrashLogActivity::class.java))
+                    }
+                }
+            }
         }
+
         try {
             setContent {
-                Tugis3Theme { ErrorBoundary { AppRoot() } }
+                Tugis3Theme {
+                    RootErrorHost {
+                        AppRoot()
+                    }
+                }
             }
         } catch (t: Throwable) {
             runCatching { CrashLogger.logException(this, t) }
             setContent {
-                Tugis3Theme { FatalErrorScreen(error = t, onShowCrashLog = {
-                    runCatching { startActivity(Intent(this, CrashLogActivity::class.java)) }
-                }) }
+                Tugis3Theme {
+                    FatalErrorScreen(error = t, onShowCrashLog = {
+                        runCatching { startActivity(Intent(this, CrashLogActivity::class.java)) }
+                    })
+                }
             }
         }
     }
 }
 
-// Basit Compose Error Boundary - içerik composable'ı çalıştırırken oluşan hataları yakalayıp fallback gösterir
+// --- Top-level UI Error Propagation ---
+interface UiErrorReporter { fun report(t: Throwable) }
+private val LocalUiErrorReporter = staticCompositionLocalOf<UiErrorReporter?> { null }
+
 @Composable
-private fun ErrorBoundary(content: @Composable () -> Unit) {
-    var error by remember { mutableStateOf<Throwable?>(null) }
-    if (error == null) {
-        // İlk compose sırasında hata olursa try-catch yakalar.
-        try {
-            content()
-        } catch (t: Throwable) {
-            error = t
-            // CrashLogger'a yaz (UI thread'te hızlıca) - silent
-            runCatching { CrashLogger.logException(LocalContext.current, t) }
+fun rememberUiErrorReporter(): UiErrorReporter = LocalUiErrorReporter.current ?: remember {
+    object : UiErrorReporter { override fun report(t: Throwable) { /* no-op (out of host) */ } }
+}
+
+@Composable
+private fun RootErrorHost(content: @Composable () -> Unit) {
+    val context = LocalContext.current
+    val errorState = remember { mutableStateOf<Throwable?>(null) }
+    val reporter = remember {
+        object : UiErrorReporter {
+            override fun report(t: Throwable) {
+                if (errorState.value == null) errorState.value = t
+            }
         }
+    }
+    // Log errors when they appear
+    LaunchedEffect(Unit) {
+        snapshotFlow { errorState.value }.collect { err ->
+            if (err != null) runCatching { CrashLogger.logException(context, err) }
+        }
+    }
+    if (errorState.value != null) {
+        FatalErrorScreen(
+            error = errorState.value!!,
+            onShowCrashLog = {
+                runCatching { context.startActivity(Intent(context, CrashLogActivity::class.java)) }
+            },
+            onRetry = { errorState.value = null }
+        )
     } else {
-        FatalErrorScreen(error = error!!, onShowCrashLog = {
-            val ctx = LocalContext.current
-            runCatching { ctx.startActivity(Intent(ctx, CrashLogActivity::class.java)) }
-        })
+        CompositionLocalProvider(LocalUiErrorReporter provides reporter) {
+            content()
+        }
     }
 }
 
 @Composable
-private fun FatalErrorScreen(error: Throwable, onShowCrashLog: () -> Unit) {
+private fun ErrorBoundary(content: @Composable () -> Unit) { content() }
+
+@Composable
+private fun FatalErrorScreen(
+    error: Throwable,
+    onShowCrashLog: () -> Unit,
+    onRetry: (() -> Unit)? = null
+) {
     Scaffold(topBar = { TopAppBar(title = { Text("Kritik Hata") }) }) { pad ->
         Column(
             modifier = Modifier
@@ -144,7 +222,9 @@ private fun FatalErrorScreen(error: Throwable, onShowCrashLog: () -> Unit) {
             )
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(onClick = onShowCrashLog) { Text("Crash Log") }
-                OutlinedButton(onClick = { /* ileride tekrar deneme opsiyonu eklenebilir */ }) { Text("Tekrar Dene") }
+                if (onRetry != null) {
+                    OutlinedButton(onClick = onRetry) { Text("Tekrar Dene") }
+                }
             }
         }
     }
@@ -198,23 +278,57 @@ fun MainNavigationScreen() {
         NavigationItem("Ölçüm", Icons.Outlined.LocationOn, NavRoutes.SURVEY),
         NavigationItem("Araçlar", Icons.Outlined.Build, NavRoutes.TOOLS)
     )
-    var selectedRoute by rememberSaveable { mutableStateOf(NavRoutes.PROJECT) }
-    LaunchedEffect(selectedRoute) {
-        if (selectedRoute != NavRoutes.PROJECT) {
-            val current = navController.currentDestination?.route
-            if (current != selectedRoute) {
-                runCatching {
-                    navController.navigate(selectedRoute) {
-                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            "Tugis",
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        // Sağ üst durum göstergeleri
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Uydu durumu
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.Satellite,
+                                    contentDescription = "Uydu",
+                                    tint = androidx.compose.ui.graphics.Color.Green,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text("12", fontSize = 12.sp, color = androidx.compose.ui.graphics.Color.Green)
+                            }
+                            // Wi-Fi durumu
+                            Icon(
+                                Icons.Default.Wifi,
+                                contentDescription = "Wi-Fi",
+                                tint = androidx.compose.ui.graphics.Color.Blue,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            // Batarya durumu
+                            Icon(
+                                Icons.Default.BatteryFull,
+                                contentDescription = "Batarya",
+                                tint = androidx.compose.ui.graphics.Color.Green,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            // Gerçek zamanlı saat
+                            RealTimeClock()
+                        }
                     }
                 }
-            }
-        }
-    }
-    Scaffold(
-        topBar = { GeneralInformationSection() },
+            )
+        },
         bottomBar = {
             NavigationBar {
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -225,13 +339,10 @@ fun MainNavigationScreen() {
                         label = { Text(item.title) },
                         selected = currentDestination?.hierarchy?.any { it.route == item.route } == true,
                         onClick = {
-                            if (selectedRoute != item.route) {
-                                selectedRoute = item.route
-                                navController.navigate(item.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
+                            navController.navigate(item.route) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
                             }
                         }
                     )
@@ -252,816 +363,6 @@ fun MainNavigationScreen() {
     }
 }
 
-@Immutable
-data class NavigationItem(
-    val title: String,
-    val icon: ImageVector,
-    val route: String
-)
-
-// General Information Section - SurvStar benzeri
-@Suppress("DEPRECATION")
-@Composable
-fun GeneralInformationSection() { // uyarı bastırıldı
-    val vm = runCatching { hiltViewModel<NavInfoViewModel>() }.getOrNull()
-
-    if (vm == null) {
-        // Fallback (VM oluşturulamadıysa crash yerine basit bilgi kartı göster)
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer
-            )
-        ) {
-            Column(Modifier.padding(16.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Project:", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                    Text("(yükleniyor)", style = MaterialTheme.typography.bodyMedium)
-                }
-                Spacer(Modifier.height(8.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Fix:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
-                    Text("0/0", style = MaterialTheme.typography.bodySmall)
-                    Text("H:- V:-", style = MaterialTheme.typography.bodySmall)
-                }
-                Spacer(Modifier.height(8.dp))
-                AssistChip(onClick = {}, label = { Text("NTRIP: -") })
-            }
-        }
-        return
-    }
-
-    val header by vm.header.collectAsState()
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            // Project Name
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "Project:",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = header.projectName,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // GNSS Status Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                // GNSS Status
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Satellite,
-                        contentDescription = "GNSS Status",
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = header.fixLabel,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                // Satellite Count
-                Text(
-                    text = header.satCounts,
-                    style = MaterialTheme.typography.bodySmall
-                )
-
-                // HRMS/VRMS
-                Text(
-                    text = header.rmsLabel,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Work Mode and Datalink Row (NTRIP durumu dahil)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Rover",
-                    style = MaterialTheme.typography.bodySmall
-                )
-                Text(
-                    text = "UHF",
-                    style = MaterialTheme.typography.bodySmall
-                )
-                val (chipColor, labelColor) = when {
-                    header.ntripStatus.startsWith("Bağlandı") -> MaterialTheme.colorScheme.primaryContainer to contentColorFor(MaterialTheme.colorScheme.primaryContainer)
-                    header.ntripStatus.startsWith("Bağlanıyor") -> MaterialTheme.colorScheme.tertiaryContainer to contentColorFor(MaterialTheme.colorScheme.tertiaryContainer)
-                    header.ntripStatus.startsWith("Hata") -> MaterialTheme.colorScheme.errorContainer to contentColorFor(MaterialTheme.colorScheme.errorContainer)
-                    else -> MaterialTheme.colorScheme.surfaceVariant to contentColorFor(MaterialTheme.colorScheme.surfaceVariant)
-                }
-                AssistChip(
-                    onClick = {},
-                    label = { Text("NTRIP: ${header.ntripStatus}") },
-                    colors = AssistChipDefaults.assistChipColors(containerColor = chipColor, labelColor = labelColor)
-                )
-                IconButton(
-                    onClick = { /* SAT Information */ },
-                    modifier = Modifier.size(24.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = "SAT Info",
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
-// SurvStar benzeri ana ekranlar
-
-// Eski basit MenuItem tanımı yerine id içeren gelişmiş sürüm
-@Immutable
-data class MenuItem(val title: String, val icon: ImageVector, val route: String? = null, val id: String = title.lowercase().replace(" ", "_"))
-
-// --- Menü durum yönetimi: favoriler & son kullanılanlar ---
-@Composable
-private fun rememberMenuState(viewModel: MenuStateViewModel = hiltViewModel()): MenuStateViewModel = viewModel
-
-// GridMenu önceki gelişmiş sürümünü kolon parametresi destekleyecek şekilde güncelliyoruz
-@Composable
-fun GridMenu(
-    menuItems: List<MenuItem>,
-    favorites: Set<String>,
-    recents: List<String>,
-    columns: Int,
-    onMenuItemClick: (MenuItem) -> Unit,
-    onLongPress: (MenuItem) -> Unit
-) {
-    val haptic = LocalHapticFeedback.current
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(columns),
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        items(menuItems, key = { it.id }) { item ->
-            val isFav = favorites.contains(item.id)
-            val isRecent = recents.contains(item.id)
-            Card(
-                modifier = Modifier
-                    .aspectRatio(1f)
-                    .combinedClickable(
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            onMenuItemClick(item)
-                        },
-                        onLongClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onLongPress(item)
-                        }
-                    ),
-                elevation = CardDefaults.cardElevation(defaultElevation = if (isRecent) 8.dp else 4.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (isFav) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surface
-                )
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Box(contentAlignment = Alignment.TopEnd, modifier = Modifier.fillMaxWidth()) {
-                        if (isFav) {
-                            Icon(
-                                imageVector = Icons.Filled.Star,
-                                contentDescription = "Favori",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-                    Icon(
-                        imageVector = item.icon,
-                        contentDescription = item.title,
-                        modifier = Modifier.size(40.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = item.title,
-                        textAlign = TextAlign.Center,
-                        fontSize = 12.sp,
-                        fontWeight = if (isRecent) FontWeight.Bold else FontWeight.Medium
-                    )
-                    if (isRecent) {
-                        Text(
-                            text = "SON",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.secondary
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-// Menü üst iskeleti güncellendi: sekmeler, bottom sheet, temizleme butonları
-@Composable
-fun MenuScreenScaffold(
-    rawItems: List<MenuItem>,
-    onLaunch: (MenuItem) -> Unit
-) {
-    val ms = rememberMenuState()
-    val favorites by ms.favorites.collectAsState()
-    val recents by ms.recents.collectAsState()
-    var query by rememberSaveable { mutableStateOf("") }
-    var selectedTab by rememberSaveable { mutableStateOf(0) } // 0: Tümü, 1: Favoriler
-    val configuration = LocalConfiguration.current
-    val maxWidth = configuration.screenWidthDp
-    val columns = remember(maxWidth) {
-        when {
-            maxWidth >= 1000 -> 6
-            maxWidth >= 800 -> 5
-            maxWidth >= 600 -> 4
-            maxWidth >= 400 -> 4
-            else -> 3
-        }
-    }
-
-    // Bottom sheet state
-    var sheetItem by remember { mutableStateOf<MenuItem?>(null) }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    val baseFiltered = remember(rawItems, query) {
-        if (query.isBlank()) rawItems else rawItems.filter { it.title.contains(query, true) }
-    }
-
-    val filtered = remember(baseFiltered, favorites, selectedTab) {
-        val base = if (selectedTab == 1) baseFiltered.filter { favorites.contains(it.id) } else baseFiltered
-        base.sortedWith(compareByDescending<MenuItem> { favorites.contains(it.id) }.thenBy { it.title })
-    }
-
-    Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize()) {
-            val inProgress by ms.inProgress.collectAsState()
-            if (inProgress) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            }
-            TabRow(selectedTabIndex = selectedTab) {
-                Tab(
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
-                    text = { Text("Tümü") },
-                    icon = { Icon(Icons.Outlined.Apps, contentDescription = null) }
-                )
-                Tab(
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
-                    text = { Text("Favoriler") },
-                    icon = { Icon(Icons.Outlined.Star, contentDescription = null) }
-                )
-            }
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
-                placeholder = { Text("Ara / filtrele") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 4.dp)
-            )
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                FilterChip(
-                    selected = query.isNotBlank(),
-                    onClick = { if (query.isNotBlank()) query = "" },
-                    label = { Text(if (query.isBlank()) "Filtre Yok" else "Filtreyi Temizle") },
-                    leadingIcon = if (query.isNotBlank()) ({ Icon(Icons.Outlined.Close, contentDescription = null) }) else null
-                )
-                if (favorites.isNotEmpty()) {
-                    AssistChip(onClick = { selectedTab = 1 }, label = { Text("Favoriler: ${favorites.size}") }, leadingIcon = { Icon(Icons.Outlined.Star, contentDescription = null) })
-                    TextButton(onClick = { ms.clearFavorites() }) { Text("Favorileri Temizle") }
-                }
-                if (recents.isNotEmpty()) {
-                    TextButton(onClick = { ms.clearRecents() }) { Text("Geçmişi Temizle") }
-                }
-            }
-            if (selectedTab == 1 && favorites.isEmpty()) {
-                Text(
-                    "Henüz favori yok. Bir kartı uzun basarak favoriye ekleyebilirsiniz.",
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                )
-            }
-            if (recents.isNotEmpty()) {
-                Text(
-                    "Son Kullanılanlar",
-                    style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.padding(start = 16.dp, top = 8.dp)
-                )
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    val recentItems = recents.mapNotNull { id -> rawItems.find { it.id == id } }
-                    items(recentItems, key = { it.id }) { mi ->
-                        AssistChip(
-                            onClick = {
-                                onLaunch(mi)
-                                ms.recordUsage(mi.id)
-                            },
-                            label = { Text(mi.title, maxLines = 1) },
-                            leadingIcon = { Icon(mi.icon, contentDescription = null) }
-                        )
-                    }
-                }
-            }
-            HorizontalDivider()
-            Box(Modifier.weight(1f)) {
-                if (filtered.isEmpty()) {
-                    Column(
-                        Modifier
-                            .fillMaxSize()
-                            .padding(32.dp),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(Icons.Outlined.Info, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
-                        Spacer(Modifier.height(12.dp))
-                        Text(
-                            text = if (query.isNotBlank()) "Filtreye uygun sonuç yok" else if (selectedTab==1) "Favori yok" else "Gösterilecek öğe yok",
-                            style = MaterialTheme.typography.bodyMedium,
-                            textAlign = TextAlign.Center
-                        )
-                        if (selectedTab==1 && favorites.isEmpty()) {
-                            Spacer(Modifier.height(8.dp))
-                            Text("Kartı uzun basarak favori ekleyin", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
-                        }
-                    }
-                } else {
-                    GridMenu(
-                        menuItems = filtered,
-                        favorites = favorites,
-                        recents = recents,
-                        columns = columns,
-                        onMenuItemClick = {
-                            onLaunch(it)
-                            ms.recordUsage(it.id)
-                        },
-                        onLongPress = { sheetItem = it }
-                    )
-                }
-            }
-        }
-        if (sheetItem != null) {
-            val mi = sheetItem!!
-            ModalBottomSheet(
-                onDismissRequest = { sheetItem = null },
-                sheetState = sheetState
-            ) {
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(mi.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    val isFav = favorites.contains(mi.id)
-                    OutlinedButton(onClick = {
-                        ms.toggleFavorite(mi.id)
-                        sheetItem = null
-                    }) { Text(if (isFav) "Favoriden Çıkar" else "Favoriye Ekle") }
-                    OutlinedButton(onClick = {
-                        onLaunch(mi)
-                        ms.recordUsage(mi.id)
-                        sheetItem = null
-                    }) { Text("Aç") }
-                    if (recents.contains(mi.id)) {
-                        OutlinedButton(onClick = {
-                            ms.removeRecent(mi.id)
-                            sheetItem = null
-                        }) { Text("Geçmişten Kaldır") }
-                    }
-                    TextButton(onClick = { sheetItem = null }) { Text("Kapat") }
-                }
-            }
-        }
-    }
-}
-
-// ProjectMainScreen vb. fonksiyonlar yeni GridMenu imzasını kullanacak şekilde güncelleniyor
-@Composable
-fun ProjectMainScreen() {
-    val context = LocalContext.current
-    @Suppress("DEPRECATION")
-    val vm = hiltViewModel<ProjectMenuViewModel>()
-    val uiState by vm.ui.collectAsState()
-    var showCreate by remember { mutableStateOf(false) }
-    var newName by remember { mutableStateOf("") }
-    var newDesc by remember { mutableStateOf("") }
-
-    // Eski grid menü öğeleri (operasyonel menü) aynı kaldı
-    val operationMenuItems = listOf(
-        MenuItem("Proje Bilgisi", Icons.Outlined.Folder),
-        MenuItem("Dosya Yönet", Icons.Outlined.FileCopy),
-        MenuItem("Koordinat Sistemi", Icons.Outlined.Public),
-        MenuItem("Nokta Kalibre", Icons.Outlined.GpsFixed),
-        MenuItem("Nokta Listesi", Icons.AutoMirrored.Outlined.List),
-        MenuItem("Nokta Verisi Dışa Aktarımı", Icons.Outlined.Upload),
-        MenuItem("Nokta Verisi İçe Aktarımı", Icons.Outlined.Download),
-        MenuItem("Barkod", Icons.Outlined.QrCodeScanner),
-        MenuItem("Bulut Ayarları", Icons.Outlined.Cloud),
-        MenuItem("Yazılım Ayarları", Icons.Outlined.Settings),
-        MenuItem("Yazılım Güncelleme", Icons.Outlined.SystemUpdate)
-    )
-
-    // Hata snackbar
-    val snackbarHostState = remember { SnackbarHostState() }
-    LaunchedEffect(uiState.error) {
-        uiState.error?.let { msg ->
-            snackbarHostState.showSnackbar(message = msg, withDismissAction = true)
-            vm.clearError()
-        }
-    }
-
-    Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
-    ) { pad ->
-        Column(
-            modifier = Modifier
-                .padding(pad)
-                .fillMaxSize()
-        ) {
-            // --- Aktif Proje Kartı + Aksiyonlar ---
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
-            ) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Aktif Proje", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                    val ap = uiState.activeProject
-                    if (ap == null) {
-                        Text("Aktif proje yok", style = MaterialTheme.typography.bodyMedium)
-                        OutlinedButton(onClick = { showCreate = true }) { Icon(Icons.Outlined.Add, contentDescription = null); Spacer(Modifier.width(6.dp)); Text("Yeni Proje Oluştur") }
-                    } else {
-                        Text(ap.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                        ap.description?.takeIf { it.isNotBlank() }?.let { desc ->
-                            Text(desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f))
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            AssistChip(onClick = { showCreate = true }, label = { Text("Yeni") }, leadingIcon = { Icon(Icons.Outlined.Add, contentDescription = null) })
-                            AssistChip(onClick = { context.safeStart(ProjectManagerActivity::class.java, "Proje Bilgisi") }, label = { Text("Yönet") }, leadingIcon = { Icon(Icons.Outlined.Settings, contentDescription = null) })
-                            AssistChip(onClick = { context.safeStart(FileManagerActivity::class.java, "Dosya Yönet") }, label = { Text("Dosyalar") }, leadingIcon = { Icon(Icons.Outlined.Folder, contentDescription = null) })
-                        }
-                    }
-                }
-            }
-
-            // --- Proje Listesi ---
-            ElevatedCard(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp)
-                    .weight(0.5f, fill = false)
-            ) {
-                Column(Modifier.padding(12.dp)) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text("Projeler", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                        TextButton(onClick = { showCreate = true }) { Icon(Icons.Outlined.Add, contentDescription = null); Spacer(Modifier.width(4.dp)); Text("Oluştur") }
-                    }
-                    if (uiState.loading) {
-                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                    }
-                    if (uiState.projects.isEmpty()) {
-                        Box(Modifier.fillMaxWidth().padding(16.dp)) {
-                            Text("Henüz proje yok. Yeni proje oluşturun.", style = MaterialTheme.typography.bodySmall)
-                        }
-                    } else {
-                        androidx.compose.foundation.lazy.LazyColumn(
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            items(uiState.projects, key = { it.id }) { p ->
-                                ProjectRow(
-                                    model = p,
-                                    onActivate = { vm.setActive(p.id) },
-                                    onDelete = { vm.delete(p.id) },
-                                    onOpen = { context.safeStart(ProjectManagerActivity::class.java, p.name) }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(8.dp))
-            HorizontalDivider()
-            Text(
-                "Operasyon Menüsü",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 4.dp)
-            )
-            Box(Modifier.weight(1f)) {
-                MenuScreenScaffold(rawItems = operationMenuItems) { menuItem ->
-                    when (menuItem.title) {
-                        "Proje Bilgisi" -> context.safeStart(ProjectManagerActivity::class.java, "Proje Bilgisi")
-                        "Dosya Yönet" -> context.safeStart(FileManagerActivity::class.java, "Dosya Yönet")
-                        "Koordinat Sistemi" -> context.safeStart(CoordinateSystemActivity::class.java, "Koordinat Sistemi")
-                        "Nokta Kalibre" -> context.safeStart(EllipsoidParametersActivity::class.java, "Nokta Kalibre")
-                        "Nokta Listesi" -> context.safeStart(PointListActivity::class.java, "Nokta Listesi")
-                        "Nokta Verisi Dışa Aktarımı" -> context.safeStart(DataUploadActivity::class.java, "Veri Gönder")
-                        "Nokta Verisi İçe Aktarımı" -> context.safeStart(FileManagerActivity::class.java, "Dosya Yönet")
-                        "Barkod" -> context.safeStart(BarcodeActivity::class.java, "Barkod")
-                        "Bulut Ayarları" -> context.safeStart(CloudSettingsActivity::class.java, "Bulut Ayarları")
-                        "Yazılım Ayarları" -> context.safeStart(SoftwareSettingsActivity::class.java, "Yazılım Ayarları")
-                        "Yazılım Güncelleme" -> context.safeStart(SoftwareUpdateActivity::class.java, "Yazılım Güncelleme")
-                        else -> context.safeStart(PlaceholderActivity::class.java, menuItem.title)
-                    }
-                }
-            }
-        }
-    }
-
-    // --- Yeni Proje Dialog ---
-    if (showCreate) {
-        AlertDialog(
-            onDismissRequest = { showCreate = false },
-            confirmButton = {
-                TextButton(
-                    enabled = newName.isNotBlank(),
-                    onClick = {
-                        vm.createProject(newName, newDesc.ifBlank { null })
-                        newName = ""; newDesc = ""; showCreate = false
-                    }
-                ) { Text("Oluştur") }
-            },
-            dismissButton = { TextButton(onClick = { showCreate = false }) { Text("İptal") } },
-            title = { Text("Yeni Proje") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(value = newName, onValueChange = { newName = it }, label = { Text("Proje Adı") }, singleLine = true)
-                    OutlinedTextField(value = newDesc, onValueChange = { newDesc = it }, label = { Text("Açıklama (opsiyonel)") })
-                }
-            }
-        )
-    }
-}
-
-@Composable
-private fun ProjectRow(
-    model: ProjectUiModel,
-    onActivate: () -> Unit,
-    onDelete: () -> Unit,
-    onOpen: () -> Unit
-) {
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = if (model.isActive) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = if (model.isActive) Icons.Outlined.Star else Icons.Outlined.Folder,
-                        contentDescription = null,
-                        tint = if (model.isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(model.name, style = MaterialTheme.typography.bodyMedium, fontWeight = if (model.isActive) FontWeight.Bold else FontWeight.Medium)
-                }
-                model.description?.takeIf { it.isNotBlank() }?.let { d ->
-                    Spacer(Modifier.height(4.dp))
-                    Text(d, style = MaterialTheme.typography.bodySmall, maxLines = 2)
-                }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                if (!model.isActive) {
-                    IconButton(onClick = onActivate) { Icon(Icons.Outlined.CheckCircle, contentDescription = "Aktif Et") }
-                } else {
-                    IconButton(onClick = onOpen) { Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = "Aç") }
-                }
-                IconButton(onClick = onDelete) { Icon(Icons.Outlined.Delete, contentDescription = "Sil", tint = MaterialTheme.colorScheme.error) }
-            }
-        }
-    }
-}
-
-@Composable
-fun DeviceMainScreen() {
-    val context = LocalContext.current
-    val menuItems = listOf(
-        MenuItem("Haberleşme", Icons.Outlined.Bluetooth),
-        MenuItem("GNSS İzleme", Icons.Outlined.GpsFixed),
-        MenuItem("NTRIP Profilleri", Icons.Outlined.Cloud),
-        MenuItem("Gezici Ayarları", Icons.Outlined.Navigation),
-        MenuItem("Sabit Ayarları", Icons.Outlined.Radio),
-        MenuItem("Cihaz Bilgisi", Icons.Outlined.Info),
-        MenuItem("Cihaz Kaydı", Icons.Outlined.AppRegistration),
-        MenuItem("Manyetik Tarama", Icons.Outlined.Search)
-    )
-    MenuScreenScaffold(rawItems = menuItems) { menuItem ->
-        when (menuItem.title) {
-            "Haberleşme" -> context.safeStart(DeviceCommunicationActivity::class.java, "Haberleşme")
-            "GNSS İzleme" -> context.safeStart(GnssMonitorActivity::class.java, "GNSS İzleme")
-            "NTRIP Profilleri" -> context.safeStart(NtripProfilesActivity::class.java, "NTRIP Profilleri")
-            "Gezici Ayarları" -> context.safeStart(RoverSettingsActivity::class.java, "Gezici Ayarları")
-            "Sabit Ayarları" -> context.safeStart(BaseStationSettingsActivity::class.java, "Sabit Ayarları")
-            "Cihaz Bilgisi" -> context.safeStart(DeviceInfoActivity::class.java, "Cihaz Bilgisi")
-            "Cihaz Kaydı" -> context.safeStart(DeviceRegistrationActivity::class.java, "Cihaz Kaydı")
-            "Manyetik Tarama" -> context.safeStart(MagneticScanActivity::class.java, "Manyetik Tarama")
-            else -> context.safeStart(PlaceholderActivity::class.java, menuItem.title)
-        }
-    }
-}
-
-// Bölümlenmiş Survey menü veri modeli
-data class SurveySection(val title: String, val items: List<MenuItem>)
-
-@Composable
-private fun SectionedSurveyMenu(
-    sections: List<SurveySection>,
-    onLaunch: (MenuItem) -> Unit
-) {
-    androidx.compose.foundation.lazy.LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        sections.forEach { section ->
-            item(key = section.title + "_header") {
-                Text(
-                    section.title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
-                )
-                HorizontalDivider()
-            }
-            item(key = section.title + "_items") {
-                Spacer(Modifier.height(4.dp))
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    section.items.chunked(2).forEach { rowItems ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            rowItems.forEach { mi ->
-                                ElevatedCard(
-                                    onClick = { onLaunch(mi) },
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(12.dp),
-                                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                                        horizontalAlignment = Alignment.Start
-                                    ) {
-                                        Icon(mi.icon, contentDescription = mi.title)
-                                        Text(
-                                            mi.title,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Medium
-                                        )
-                                    }
-                                }
-                            }
-                            if (rowItems.size == 1) {
-                                Spacer(modifier = Modifier.weight(1f))
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        item { Spacer(Modifier.height(24.dp)) }
-    }
-}
-
-@Composable
-fun SurveyMainScreen() {
-    val context = LocalContext.current
-    val sections = listOf(
-        SurveySection(
-            title = "Ölçüm Menüsü",
-            items = listOf(MenuItem("Nokta Aplikasyonu", Icons.Outlined.GpsFixed))
-        ),
-        SurveySection(
-            title = "Veri & Yapı",
-            items = listOf(MenuItem("GIS Veri", Icons.Outlined.Public), MenuItem("Katman Ayarları", Icons.Outlined.Layers))
-        ),
-        SurveySection(
-            title = "Gelişmiş Ölçüm",
-            items = listOf(
-                MenuItem("AR Aplikasyon", Icons.Outlined.Visibility),
-                MenuItem("Fotogrametri", Icons.Outlined.CameraAlt),
-                MenuItem("Statik Ölçüm", Icons.Outlined.Panorama),
-                MenuItem("Epoch Ölçüm", Icons.Outlined.HourglassEmpty),
-                MenuItem("Yol Aplikasyonu", Icons.Outlined.DirectionsCar),
-                MenuItem("CAD", Icons.Outlined.Layers)
-            )
-        )
-    )
-    SectionedSurveyMenu(sections = sections) { menuItem ->
-        when (menuItem.title) {
-            "Nokta Aplikasyonu" -> context.safeStart(PointApplicationActivity::class.java, "Nokta Aplikasyonu")
-            "GIS Veri" -> context.safeStart(GisDataCollectionActivity::class.java, "GIS Veri")
-            "Katman Ayarları" -> context.safeStart(LayerSettingsActivity::class.java, "Katman Ayarları")
-            "AR Aplikasyon" -> context.safeStart(ARApplicationActivity::class.java, "AR Aplikasyon")
-            "Fotogrametri" -> context.safeStart(PhotogrammetryActivity::class.java, "Fotogrametri")
-            "Statik Ölçüm" -> context.safeStart(StaticSurveyActivity::class.java, "Statik Ölçüm")
-            "Epoch Ölçüm" -> context.safeStart(EpochSurveyActivity::class.java, "Epoch Ölçüm")
-            "Yol Aplikasyonu" -> context.safeStart(RoadStakeoutActivity::class.java, "Yol Aplikasyonu")
-            "CAD" -> context.safeStart(CadApplicationActivity::class.java, "CAD")
-            else -> context.safeStart(PlaceholderActivity::class.java, menuItem.title)
-        }
-    }
-}
-
-@Composable
-fun ToolsMainScreen() {
-    val context = LocalContext.current
-    val menuItems = listOf(
-        MenuItem("Lokalizasyon", Icons.Outlined.MyLocation),
-        MenuItem("Koordinat Dönüşümü", Icons.Outlined.Public),
-        MenuItem("Açı Dönüşümü", Icons.Outlined.Explore),
-        MenuItem("Alan / Çevre", Icons.Outlined.CropSquare),
-        MenuItem("Mesafe Hesabı", Icons.Outlined.Straighten),
-        MenuItem("COGO", Icons.Outlined.Calculate),
-        MenuItem("Hacim Hesabı", Icons.Outlined.Assessment),
-        MenuItem("Hesap Makinesi", Icons.Outlined.Dialpad),
-        MenuItem("Dış Radyo", Icons.Outlined.Radio),
-        MenuItem("Periyodik Offset", Icons.Outlined.Schedule),
-        MenuItem("FTP Paylaşım", Icons.Outlined.Cloud),
-        MenuItem("Grid -> Arazi", Icons.Outlined.GridOn),
-        MenuItem("Veri Paylaşımı", Icons.Outlined.Share)
-    )
-    MenuScreenScaffold(rawItems = menuItems) { mi ->
-        when (mi.title) {
-            "Lokalizasyon" -> context.safeStart(LocalizationActivity::class.java, mi.title)
-            "Koordinat Dönüşümü" -> context.safeStart(CoordinateConverterActivity::class.java, mi.title)
-            "Açı Dönüşümü" -> context.safeStart(AngleConversionActivity::class.java, mi.title)
-            "Alan / Çevre" -> context.safeStart(AreaCalculationActivity::class.java, mi.title)
-            "Mesafe Hesabı" -> context.safeStart(DistanceCalculationActivity::class.java, mi.title)
-            "COGO" -> context.safeStart(CogoToolsActivity::class.java, mi.title)
-            "Hacim Hesabı" -> context.safeStart(VolumeCalculationActivity::class.java, mi.title)
-            "Hesap Makinesi" -> context.safeStart(CalculatorActivity::class.java, mi.title)
-            "Dış Radyo" -> context.safeStart(ExternalRadioConfigActivity::class.java, mi.title)
-            "Periyodik Offset" -> context.safeStart(PeriodicOffsetActivity::class.java, mi.title)
-            "FTP Paylaşım" -> context.safeStart(FtpSharedDataActivity::class.java, mi.title)
-            "Grid -> Arazi" -> context.safeStart(GridToGroundActivity::class.java, mi.title)
-            "Veri Paylaşımı" -> context.safeStart(DataSharingActivity::class.java, mi.title)
-            else -> context.safeStart(PlaceholderActivity::class.java, mi.title)
-        }
-    }
-}
-
 // Context extension fonksiyonları
 fun Context.safeStart(target: Class<*>, title: String? = null) {
     try {
@@ -1077,12 +378,405 @@ fun Context.safeStart(target: Class<*>, title: String? = null) {
     }
 }
 
-@Suppress("unused")
-fun Context.safeStartByName(className: String, title: String? = null) {
-    try {
-        val cls = Class.forName(className)
-        safeStart(cls, title)
-    } catch (_: Exception) {
-        safeStart(PlaceholderActivity::class.java, title ?: className)
+// Proje ana ekranı - Resimde sol üst panel - güncellenmiş
+@Composable
+private fun ProjectMainScreen() {
+    val context = LocalContext.current
+
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(3),
+        contentPadding = PaddingValues(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(getProjectMenuItems()) { item ->
+            MenuCard(
+                title = item.title,
+                icon = item.icon,
+                color = item.color,
+                onClick = {
+                    when (item.action) {
+                        "project_manager" -> context.safeStart(ProjectManagerActivity::class.java, "Proje Yöneticisi")
+                        "coordinate_system" -> context.safeStart(CoordinateSystemActivity::class.java, "Koordinat Sistemi")
+                        "point_database" -> context.safeStart(PointDatabaseActivity::class.java, "Nokta Veritabanı")
+                        "project_info" -> context.safeStart(PlaceholderActivity::class.java, "Proje Bilgisi")
+                        "survey_management" -> context.safeStart(FileManagerActivity::class.java, "Dosya Yönetimi")
+                        "calibration" -> context.safeStart(CalibrationActivity::class.java, "Nokta Kalibrasyonu")
+                        "send_data" -> context.safeStart(PlaceholderActivity::class.java, "Veri Gönder")
+                        "barcode" -> context.safeStart(PlaceholderActivity::class.java, "QR Kod")
+                        "cloud_settings" -> context.safeStart(CloudSettingsActivity::class.java, "Bulut Ayarları")
+                        "software_settings" -> context.safeStart(SoftwareSettingsActivity::class.java, "Yazılım Ayarları")
+                        else -> Toast.makeText(context, "${item.title} özelliği", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            )
+        }
     }
 }
+
+// Cihaz ana ekranı - Resimde sol alt panel - güncellenmiş
+@Composable
+private fun DeviceMainScreen() {
+    val context = LocalContext.current
+
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(3),
+        contentPadding = PaddingValues(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(getDeviceMenuItems()) { item ->
+            MenuCard(
+                title = item.title,
+                icon = item.icon,
+                color = item.color,
+                onClick = {
+                    when (item.action) {
+                        "communication" -> context.safeStart(com.example.tugis3.ui.device.CommunicationActivity::class.java, "İletişim")
+                        "bluetooth" -> context.safeStart(com.example.tugis3.ui.device.BluetoothSettingsActivityNew::class.java, "Bluetooth Ayarları")
+                        "base_station" -> context.safeStart(BaseStationActivity::class.java, "Base Station")
+                        "rover_station" -> context.safeStart(RoverSettingsActivity::class.java, "Gezici (Rover)")
+                        "measuring_device" -> context.safeStart(MeasuringDeviceActivity::class.java, "Ölçü Cihazı")
+                        "fixed" -> context.safeStart(FixedPointActivity::class.java, "Sabit")
+                        "static_status" -> context.safeStart(StaticStatusActivity::class.java, "Statik Durum")
+                        "current_location" -> context.safeStart(CurrentLocationActivity::class.java, "Mevcut Konum")
+                        "quick_module" -> context.safeStart(QuickModuleActivity::class.java, "Hızlı Modül")
+                        "device_info" -> context.safeStart(DeviceInfoActivity::class.java, "Cihaz Bilgisi")
+                        "sensor_calibration" -> context.safeStart(SensorCalibrationActivity::class.java, "Sensör Kalibre")
+                        else -> Toast.makeText(context, "${item.title} özelliği", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            )
+        }
+    }
+}
+
+// Ölçüm ana ekranı - Resimde sağ üst panel - güncellenmiş
+@Composable
+private fun SurveyMainScreen() {
+    val context = LocalContext.current
+
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(3),
+        contentPadding = PaddingValues(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(getSurveyMenuItems()) { item ->
+            MenuCard(
+                title = item.title,
+                icon = item.icon,
+                color = item.color,
+                onClick = {
+                    when (item.action) {
+                        "graphic_survey" -> context.safeStart(GraphicalSurveyActivity::class.java, "Grafik Alım")
+                        "quick_survey" -> context.safeStart(QuickPointSurveyActivity::class.java, "Hızlı Alım")
+                        "cad_application" -> context.safeStart(CadApplicationActivity::class.java, "Cad Aplikasyon")
+                        "point_application" -> context.safeStart(PointApplicationActivity::class.java, "Nokta Aplikasyon")
+                        "line_application" -> context.safeStart(LineStakeoutActivity::class.java, "Hat Aplikasyon")
+                        "precision_plan_application" -> context.safeStart(CrossSectionMeasurementActivity::class.java, "Kesit Plan Aplikasyon")
+                        "crosshair_settings" -> context.safeStart(LayerSettingsActivity::class.java, "Katman Ayarları")
+                        "measurement_analysis" -> context.safeStart(AnalysisMeasurementActivity::class.java, "Ölçüm Analizi")
+                        else -> Toast.makeText(context, "${item.title} özelliği", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            )
+        }
+    }
+}
+
+// Araçlar ana ekranı - Resimde sağ alt panel
+@Composable
+private fun ToolsMainScreen() {
+    val context = LocalContext.current
+
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(3),
+        contentPadding = PaddingValues(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(getToolsMenuItems()) { item ->
+            MenuCard(
+                title = item.title,
+                icon = item.icon,
+                color = item.color,
+                onClick = {
+                    when (item.action) {
+                        "local_transformation" -> context.safeStart(LocalTransformationActivity::class.java, "Lokal Dönüşüm")
+                        "coordinate_transformation" -> context.safeStart(CoordinateConverterActivity::class.java, "Koordinat Dönüştür")
+                        "angle_transformation" -> context.safeStart(AngleConverterActivity::class.java, "Açı Dönüştür")
+                        "conversion_area" -> context.safeStart(ConversionAreaActivity::class.java, "Çevre Ve Alan")
+                        "cogo" -> context.safeStart(CogoActivity::class.java, "COGO")
+                        "calculation_machine" -> context.safeStart(CalculationActivity::class.java, "Hesap Makinesi")
+                        "external_radio" -> context.safeStart(ExternalRadioActivity::class.java, "Harici Radyo")
+                        "volume_calculation" -> context.safeStart(VolumeCalculationActivity::class.java, "Hacim Hesabı")
+                        "station_renewal" -> context.safeStart(StationRenewalActivity::class.java, "İstasyon Yenile")
+                        "user_manual" -> context.safeStart(com.example.tugis3.ui.help.HelpActivity::class.java, "Kullanım Kılavuzu")
+                        else -> Toast.makeText(context, "${item.title} özelliği", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            )
+        }
+    }
+}
+
+// Proje menü öğeleri - güncellenmiş ve yeni modüllere uygun
+private fun getProjectMenuItems() = listOf(
+    MenuItem("Proje Yöneticisi", Icons.Default.AccountTree, Color(0xFF4CAF50), "project_manager"),
+    MenuItem("Koordinat Sistemi", Icons.Default.Language, Color(0xFF2196F3), "coordinate_system"),
+    MenuItem("Nokta Veritabanı", Icons.AutoMirrored.Outlined.List, Color(0xFF9C27B0), "point_database"),
+    MenuItem("Proje Bilgisi", Icons.Default.Info, Color(0xFFFF9800), "project_info"),
+    MenuItem("Dosya Yönet", Icons.Default.Folder, Color(0xFF4CAF50), "survey_management"),
+    MenuItem("Nokta Kalibre", Icons.Default.Tune, Color(0xFFE91E63), "calibration"),
+    MenuItem("Veri Gönder", Icons.Default.Send, Color(0xFF00BCD4), "send_data"),
+    MenuItem("QR Kod", Icons.Default.QrCode, Color(0xFFFF5722), "barcode"),
+    MenuItem("Bulut Ayarları", Icons.Default.Cloud, Color(0xFF607D8B), "cloud_settings"),
+    MenuItem("Yazılım Ayarları", Icons.Default.Settings, Color(0xFF795548), "software_settings")
+)
+
+// Cihaz menü öğeleri - güncellenmiş ve yeni modüllere uygun
+private fun getDeviceMenuItems() = listOf(
+    MenuItem("İletişim", Icons.Default.Wifi, Color(0xFF4CAF50), "communication"),
+    MenuItem("Bluetooth", Icons.Default.Bluetooth, Color(0xFF2196F3), "bluetooth"),
+    MenuItem("Base Station", Icons.Default.Wifi, Color(0xFF9C27B0), "base_station"),
+    MenuItem("Rover Station", Icons.Default.GpsFixed, Color(0xFFFF9800), "rover_station"),
+    MenuItem("Ölçü Cihazı", Icons.Default.DeviceHub, Color(0xFFE91E63), "measuring_device"),
+    MenuItem("Sabit", Icons.Default.Place, Color(0xFF00BCD4), "fixed"),
+    MenuItem("Statik Durum", Icons.Default.Satellite, Color(0xFFFF5722), "static_status"),
+    MenuItem("Mevcut Konum", Icons.Default.LocationOn, Color(0xFF607D8B), "current_location"),
+    MenuItem("Hızlı Modül", Icons.Default.Speed, Color(0xFF795548), "quick_module"),
+    MenuItem("Cihaz Bilgisi", Icons.Default.Info, Color(0xFF3F51B5), "device_info"),
+    MenuItem("Sensör Kalibre", Icons.Default.Tune, Color(0xFF009688), "sensor_calibration")
+)
+
+// Ölçüm menü öğeleri - Lazy loading ile optimize edildi
+private fun getSurveyMenuItems() = listOf(
+    MenuItem("Grafik Alım", Icons.Default.Map, Color(0xFF2196F3), "graphic_survey"),
+    MenuItem("Hızlı Alım", Icons.Default.Speed, Color(0xFF4CAF50), "quick_survey"),
+    MenuItem("Cad Aplikasyon", Icons.Default.Architecture, Color(0xFFFF9800), "cad_application"),
+    MenuItem("Nokta Aplikasyon", Icons.Default.LocationOn, Color(0xFF9C27B0), "point_application"),
+    MenuItem("Hat Aplikasyon", Icons.Default.Timeline, Color(0xFFE91E63), "line_application"),
+    MenuItem("Kesit Plan Aplikasyon", Icons.Default.Layers, Color(0xFF00BCD4), "precision_plan_application"),
+    MenuItem("Katman Ayarları", Icons.Default.Layers, Color(0xFFFF5722), "crosshair_settings"),
+    MenuItem("Ölçüm Analizi", Icons.Default.Analytics, Color(0xFF607D8B), "measurement_analysis")
+)
+
+// Araçlar menü öğeleri - Lazy loading ile optimize edildi
+private fun getToolsMenuItems() = listOf(
+    MenuItem("Lokal Dönüşüm", Icons.Default.Transform, Color(0xFF4CAF50), "local_transformation"),
+    MenuItem("Koordinat Dönüştür", Icons.Default.CompareArrows, Color(0xFF2196F3), "coordinate_transformation"),
+    MenuItem("Açı Dönüştür", Icons.Default.Rotate90DegreesCw, Color(0xFFFF9800), "angle_transformation"),
+    MenuItem("Çevre Ve Alan", Icons.Default.CropFree, Color(0xFF9C27B0), "conversion_area"),
+    MenuItem("COGO", Icons.Default.Calculate, Color(0xFFE91E63), "cogo"),
+    MenuItem("Hesap Makinesi", Icons.Default.Calculate, Color(0xFF00BCD4), "calculation_machine"),
+    MenuItem("Harici Radyo", Icons.Default.Radio, Color(0xFFFF5722), "external_radio"),
+    MenuItem("Hacim Hesabı", Icons.Default.ViewInAr, Color(0xFF607D8B), "volume_calculation"),
+    MenuItem("İstasyon Yenile", Icons.Default.Refresh, Color(0xFF795548), "station_renewal"),
+    MenuItem("Kullanım Kılavuzu", Icons.Default.MenuBook, Color(0xFF3F51B5), "user_manual")
+)
+
+// General Information Section - SurvStar benzeri
+@Suppress("DEPRECATION")
+@Composable
+fun GeneralInformationSection() { // uyarı bastırıldı
+    val vm = runCatching { hiltViewModel<NavInfoViewModel>() }.getOrNull()
+
+    if (vm == null) {
+        // Fallback (VM oluşturulamadıysa crash yerine basit bilgi kartı göster)
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "TUGIS 3.0",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Default.Satellite, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Text("GPS: --", fontSize = 12.sp)
+                }
+            }
+        }
+        return
+    }
+
+    val uiState by vm.uiState.collectAsState()
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "TUGIS 3.0 - ${uiState.projectName}",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(
+                        Icons.Default.Satellite,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = when (uiState.gpsStatus) {
+                            "RTK_FIX" -> MaterialTheme.colorScheme.primary
+                            "RTK_FLOAT" -> Color(0xFFFFC107)
+                            else -> MaterialTheme.colorScheme.outline
+                        }
+                    )
+                    Text("GPS: ${uiState.satelliteCount}", fontSize = 12.sp)
+                }
+            }
+
+            if (uiState.showDetails) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Konum: ${uiState.currentLocation}", fontSize = 10.sp)
+                    Text("Durum: ${uiState.gpsStatus}", fontSize = 10.sp)
+                }
+            }
+        }
+    }
+}
+
+// NavInfoViewModel - GNSS ve proje bilgilerini yönetir
+@HiltViewModel
+class NavInfoViewModel @Inject constructor(
+    private val gnssRepository: GnssPositionRepository
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(NavInfoUiState())
+    val uiState: StateFlow<NavInfoUiState> = _uiState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            gnssRepository.position.collect { position ->
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        satelliteCount = position.satsInUse ?: 0,
+                        gpsStatus = position.fixType?.name ?: "NO_FIX",
+                        currentLocation = if (position.lat != null && position.lon != null) {
+                            "${String.format("%.6f", position.lat)}, ${String.format("%.6f", position.lon)}"
+                        } else {
+                            "Konum alınamadı"
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    fun toggleDetails() {
+        _uiState.update { it.copy(showDetails = !it.showDetails) }
+    }
+}
+
+data class NavInfoUiState(
+    val projectName: String = "Varsayılan Proje",
+    val satelliteCount: Int = 0,
+    val gpsStatus: String = "NO_FIX",
+    val currentLocation: String = "Konum alınamadı",
+    val showDetails: Boolean = false
+)
+
+// MenuCard composable for displaying menu items in grid
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MenuCard(
+    title: String,
+    icon: ImageVector,
+    color: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val haptic = LocalHapticFeedback.current
+
+    Card(
+        onClick = {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            onClick()
+        },
+        modifier = modifier
+            .aspectRatio(1f),
+        colors = CardDefaults.cardColors(
+            containerColor = color.copy(alpha = 0.1f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = title,
+                tint = color,
+                modifier = Modifier.size(32.dp)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                fontSize = 11.sp
+            )
+        }
+    }
+}
+
+/**
+ * Gerçek zamanlı saat gösterimi - her saniye güncellenir
+ */
+@Composable
+fun RealTimeClock() {
+    var currentTime by remember { mutableStateOf(getCurrentTime()) }
+
+    // Her saniye güncelleme
+    LaunchedEffect(key1 = Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(1000L) // 1 saniye bekle
+            currentTime = getCurrentTime() // Saati güncelle
+        }
+    }
+
+    Text(
+        text = currentTime,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Medium,
+        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface
+    )
+}
+
+private fun getCurrentTime(): String {
+    val sdf = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
+    return sdf.format(java.util.Date())
+}
+

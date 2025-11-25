@@ -1,10 +1,8 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
 package com.example.tugis3.ui.survey
 
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -29,14 +27,19 @@ import dagger.hilt.android.AndroidEntryPoint
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import android.content.Context
+import kotlin.math.abs
+import androidx.core.net.toUri
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import java.util.Locale
 
 @AndroidEntryPoint
 class PointStakeoutActivity : ComponentActivity() {
@@ -50,6 +53,7 @@ class PointStakeoutActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             Tugis3Theme {
+                // ViewModel compose içinde sağlanacak
                 PointStakeoutScreen(onBack = { finish() })
             }
         }
@@ -128,7 +132,7 @@ private fun saveMeasuredPoints(ctx: Context, list: List<MeasuredPoint>) = runCat
 // Basit geoit (placeholder) - gerçek model yoksa 0 döner.
 private fun approximateGeoidUndulation(lat: Double, lon: Double): Double {
     // Çok kaba örnek: enlem bantlarına göre birkaç sabit offset (sadece demo)
-    val aLat = kotlin.math.abs(lat)
+    val aLat = abs(lat)
     return when {
         aLat < 10 -> -5.0
         aLat < 30 -> -10.0
@@ -139,7 +143,14 @@ private fun approximateGeoidUndulation(lat: Double, lon: Double): Double {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun PointStakeoutScreen(onBack: () -> Unit) {
+private fun PointStakeoutScreen(onBack: () -> Unit, vm: PointStakeoutViewModel = hiltViewModel()) {
+    // Hedef seçim sheet kontrolü
+    var showTargetSheet by remember { mutableStateOf(false) }
+
+    // VM akışları
+    val stake by vm.stakeoutState.collectAsState()
+    val points by vm.projectPoints.collectAsState()
+
     var searchQuery by remember { mutableStateOf("") }
     var selectedLat by remember { mutableStateOf("39.9334") }
     var selectedLng by remember { mutableStateOf("32.8597") }
@@ -148,9 +159,15 @@ private fun PointStakeoutScreen(onBack: () -> Unit) {
     val snackHost = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val pos by GnssPositionRepository.position.collectAsState()
+    val instH by vm.instrumentHeight.collectAsState()
 
-    // Ölçüm listesi kalıcı yükleme
-    val measured = remember { mutableStateListOf<MeasuredPoint>().apply { addAll(loadMeasuredPoints(context)) } }
+    // Ölçüm listesi kalıcı yükleme (IO thread)
+    val measured = remember { mutableStateListOf<MeasuredPoint>() }
+    LaunchedEffect(Unit) {
+        val list = withContext(Dispatchers.IO) { loadMeasuredPoints(context) }
+        measured.addAll(list)
+    }
+
     var applyGeoid by remember { mutableStateOf(false) }
     var manualLatLon by remember { mutableStateOf(false) }
     var showMeasureMap by remember { mutableStateOf(true) }
@@ -159,11 +176,12 @@ private fun PointStakeoutScreen(onBack: () -> Unit) {
     var pointDesc by remember { mutableStateOf("") }
     var showAllPoints by remember { mutableStateOf(false) }
 
-    // Ölçüm marker JSON (yalın)
-    val measuredJson by remember(measured.size) {
-        mutableStateOf(buildString {
+    // Ölçüm marker JSON (arka planda üret, büyük listeleri sınırla)
+    fun buildMeasuredJsonLocal(list: List<MeasuredPoint>, limit: Int = 500): String {
+        val seq = if (list.size > limit) list.takeLast(limit) else list
+        return buildString {
             append('[')
-            measured.forEachIndexed { idx, p ->
+            seq.forEachIndexed { idx, p ->
                 if (idx>0) append(',')
                 append('{')
                 fun esc(s:String?) = s?.replace("\"","\\\"")
@@ -173,11 +191,16 @@ private fun PointStakeoutScreen(onBack: () -> Unit) {
                 append('}')
             }
             append(']')
-        })
+        }
+    }
+    val measuredJson by produceState(initialValue = "[]", key1 = measured.size) {
+        value = withContext(Dispatchers.Default) { buildMeasuredJsonLocal(measured) }
     }
 
-    // Otomatik kaydet (liste değişince serialize)
-    LaunchedEffect(measured.size) { saveMeasuredPoints(context, measured) }
+    // Otomatik kaydet (liste değişince serialize) – IO thread
+    LaunchedEffect(measured.size) {
+        withContext(Dispatchers.IO) { saveMeasuredPoints(context, measured) }
+    }
 
     // GNSS otomatik doldurma (manuel müdahale edilmediyse)
     LaunchedEffect(pos.lat, pos.lon, manualLatLon) {
@@ -237,7 +260,55 @@ private fun PointStakeoutScreen(onBack: () -> Unit) {
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Geri") } }
             )
         },
-        snackbarHost = { SnackbarHost(snackHost) }
+        snackbarHost = { SnackbarHost(snackHost) },
+        bottomBar = {
+            BottomAppBar(actions = {
+                // Hedef özeti + yönlü sapmalar + alet yüksekliği
+                val tgt = stake.target
+                if (tgt != null) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            text = tgt.name?.let { "Hedef: ${it}" } ?: "Hedef Y=%.3f X=%.3f".format(tgt.northing ?: 0.0, tgt.easting ?: 0.0),
+                            maxLines = 1
+                        )
+                        val nStr = stake.offsetN?.let { (if (it >= 0.0) "Kuzey " else "Güney ") + String.format(Locale.US, "%.3f m", abs(it)) } ?: "Kuzey/Güney -"
+                        val eStr = stake.offsetE?.let { (if (it >= 0.0) "Doğu " else "Batı ") + String.format(Locale.US, "%.3f m", abs(it)) } ?: "Doğu/Batı -"
+                        val ihStr = "Alet Yük.: " + String.format(Locale.US, "%.2f m", instH)
+                        Text("$nStr   $eStr   $ihStr", style = MaterialTheme.typography.labelSmall)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = { showTargetSheet = true }) { Text("Değiştir") }
+                        var showIH by remember { mutableStateOf(false) }
+                        TextButton(onClick = { showIH = true }) { Text("Yük.") }
+                        if (showIH) {
+                            var ihText by remember { mutableStateOf(String.format(Locale.US, "%.2f", instH)) }
+                            AlertDialog(
+                                onDismissRequest = { showIH = false },
+                                confirmButton = {
+                                    TextButton(onClick = {
+                                        ihText.replace(',', '.').toDoubleOrNull()?.let { vm.setInstrumentHeight(it) }
+                                        showIH = false
+                                    }) { Text("Kaydet") }
+                                },
+                                dismissButton = { TextButton(onClick = { showIH = false }) { Text("İptal") } },
+                                title = { Text("Alet Yüksekliği") },
+                                text = {
+                                    OutlinedTextField(
+                                        value = ihText,
+                                        onValueChange = { ihText = it },
+                                        label = { Text("metre") },
+                                        singleLine = true
+                                    )
+                                }
+                            )
+                        }
+                    }
+                } else {
+                    Text(text = "Hedef yok", modifier = Modifier.weight(1f))
+                    Button(onClick = { showTargetSheet = true }) { Icon(Icons.Default.Place, null); Spacer(Modifier.width(6.dp)); Text("Hedef Seç") }
+                }
+            })
+        }
     ) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             // Başlık
@@ -289,12 +360,12 @@ private fun PointStakeoutScreen(onBack: () -> Unit) {
                             if (lat == null || lng == null) {
                                 scope.launch { snackHost.showSnackbar("Geçersiz koordinat") }
                             } else {
-                                val navUri = Uri.parse("google.navigation:q=$lat,$lng")
+                                val navUri = "google.navigation:q=$lat,$lng".toUri()
                                 val navIntent = Intent(Intent.ACTION_VIEW, navUri).apply { setPackage("com.google.android.apps.maps") }
                                 val canGoogle = navIntent.resolveActivity(context.packageManager) != null
                                 try {
                                     if (canGoogle) context.startActivity(navIntent) else {
-                                        val geoUri = Uri.parse("geo:$lat,$lng?q=$lat,$lng")
+                                        val geoUri = "geo:$lat,$lng?q=$lat,$lng".toUri()
                                         val geoIntent = Intent(Intent.ACTION_VIEW, geoUri)
                                         val canGeo = geoIntent.resolveActivity(context.packageManager) != null
                                         if (canGeo) context.startActivity(geoIntent) else scope.launch { snackHost.showSnackbar("Uygun harita uygulaması bulunamadı") }
@@ -330,11 +401,7 @@ private fun PointStakeoutScreen(onBack: () -> Unit) {
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(onClick = {
-                                if (latVal == null || lonVal == null) {
-                                    scope.launch { snackHost.showSnackbar("GNSS yok") }
-                                } else {
-                                    pointName = ""; pointDesc = ""; showSaveDialog = true
-                                }
+                                pointName = ""; pointDesc = ""; showSaveDialog = true
                             }) { Text("Kaydet") }
                             OutlinedButton(onClick = { measured.clear(); scope.launch { snackHost.showSnackbar("Liste temizlendi") } }) { Text("Temizle") }
                             if (measured.isNotEmpty()) TextButton(onClick = { showAllPoints = true }) { Text("Tümü (${measured.size})") }
@@ -363,6 +430,88 @@ private fun PointStakeoutScreen(onBack: () -> Unit) {
                         Text("Harita Yükleniyor...", style = MaterialTheme.typography.bodyMedium)
                         Text("Koordinat: $selectedLat, $selectedLng", style = MaterialTheme.typography.bodySmall)
                         TextButton(onClick = { showMap = false }) { Text("Kapat") }
+                    }
+                }
+            }
+        }
+    }
+
+    // Hedef Seçim/Giriş Sheet
+    if (showTargetSheet) {
+        var tabIndex by remember { mutableStateOf(0) } // 0: Listeden Seç, 1: Elle Gir
+        var search by remember { mutableStateOf("") }
+        var manualN by remember { mutableStateOf("") }
+        var manualE by remember { mutableStateOf("") }
+        var manualZ by remember { mutableStateOf("") }
+        val filtered = remember(points, search) {
+            val q = search.trim()
+            if (q.isEmpty()) points.take(200) else points.filter { it.name.contains(q, ignoreCase = true) }.take(200)
+        }
+        // Modern M3: sheetState kullan
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(onDismissRequest = { showTargetSheet = false }, sheetState = sheetState) {
+            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Hedef Nokta", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                PrimaryTabRow(selectedTabIndex = tabIndex) {
+                    Tab(selected = tabIndex==0, onClick = { tabIndex = 0 }, text = { Text("Listeden Seç") })
+                    Tab(selected = tabIndex==1, onClick = { tabIndex = 1 }, text = { Text("Elle Gir") })
+                }
+                when (tabIndex) {
+                    0 -> {
+                        OutlinedTextField(
+                            value = search,
+                            onValueChange = { search = it },
+                            label = { Text("Nokta No/Ad Ara") },
+                            leadingIcon = { Icon(Icons.Default.Search, null) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        val listState = rememberLazyListState()
+                        LazyColumn(Modifier.heightIn(max = 400.dp), state = listState) {
+                            itemsIndexed(filtered) { _, p ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(p.name, fontWeight = FontWeight.Medium)
+                                        Text("Y=%.3f  X=%.3f".format(p.northing, p.easting), style = MaterialTheme.typography.labelSmall)
+                                    }
+                                    TextButton(onClick = {
+                                        vm.selectPoint(p.name)
+                                        showTargetSheet = false
+                                        scope.launch { snackHost.showSnackbar("Hedef: ${p.name}") }
+                                    }) { Text("Seç") }
+                                }
+                                HorizontalDivider()
+                            }
+                        }
+                    }
+                    1 -> {
+                        // Elle koordinat (Projeksiyon düzleminde) Y/N/Z
+                        Text("Projeksiyon koordinatı girin (Y/N, opsiyonel Z)", style = MaterialTheme.typography.bodySmall)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                            OutlinedTextField(manualN, { manualN = it }, label = { Text("Y (Northing)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.weight(1f))
+                            OutlinedTextField(manualE, { manualE = it }, label = { Text("X (Easting)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.weight(1f))
+                        }
+                        OutlinedTextField(manualZ, { manualZ = it }, label = { Text("Z (isteğe bağlı)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.fillMaxWidth())
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            TextButton(onClick = { showTargetSheet = false }) { Text("İptal") }
+                            Spacer(Modifier.width(8.dp))
+                            Button(onClick = {
+                                val n = manualN.replace(',', '.').toDoubleOrNull()
+                                val e = manualE.replace(',', '.').toDoubleOrNull()
+                                val z = manualZ.replace(',', '.').toDoubleOrNull()
+                                if (n == null || e == null) {
+                                    scope.launch { snackHost.showSnackbar("Geçersiz Y/X") }
+                                } else {
+                                    vm.setManualTarget(easting = e, northing = n, elevation = z)
+                                    showTargetSheet = false
+                                    scope.launch { snackHost.showSnackbar("Hedef: Y=%.3f X=%.3f".format(n, e)) }
+                                }
+                            }) { Icon(Icons.Default.Check, null); Spacer(Modifier.width(6.dp)); Text("Ayarla") }
+                        }
                     }
                 }
             }

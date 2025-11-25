@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- GeoJSON export dosyaları (filesDir/exports) -->
+    <!-- Internal (filesDir) exports klasörü -->
     <files-path name="exports" path="exports/" />
+    <!-- Harita / CAD paylaşımı için external app özel Pictures dizini -->
+    <external-files-path name="ext_pictures" path="Pictures/" />
 </paths>

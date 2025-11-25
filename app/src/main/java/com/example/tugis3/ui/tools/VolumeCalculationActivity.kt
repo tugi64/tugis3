@@ -35,7 +35,6 @@ import java.util.Date
 import java.util.Locale
 import kotlin.math.*
 
-@OptIn(ExperimentalMaterial3Api::class)
 @AndroidEntryPoint
 class VolumeCalculationActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

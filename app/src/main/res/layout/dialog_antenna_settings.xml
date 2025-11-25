@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Anten Yüksekliği (m)"
+        android:textStyle="bold" />
+
+    <EditText
+        android:id="@+id/etAntennaHeight"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:inputType="numberDecimal"
+        android:text="1.56"
+        android:layout_marginBottom="16dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Anten Ölçüm Türü"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp" />
+
+    <RadioGroup
+        android:id="@+id/rgAntennaMeasureType"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp">
+
+        <RadioButton
+            android:id="@+id/rbPhaseCenter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Faz Merkezinden Ölçülen Yükseklik"
+            android:checked="true" />
+
+        <RadioButton
+            android:id="@+id/rbMeasureLine"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Ölçüm Hattından Eğim Yüksekliği" />
+
+        <RadioButton
+            android:id="@+id/rbMeasureHeight"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Ölçüm Hattından Yükseklik" />
+
+        <RadioButton
+            android:id="@+id/rbAltimeter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Altimetri Parçasından Eğim Yüksekliği" />
+
+        <RadioButton
+            android:id="@+id/rbDeviceBottom"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Cihazın Altından Yükseklik" />
+
+    </RadioGroup>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Anten Faz Yüksekliği (m)"
+        android:textStyle="bold" />
+
+    <EditText
+        android:id="@+id/etAntennaPhaseHeight"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:inputType="numberDecimal"
+        android:text="1.5734" />
+
+</LinearLayout>

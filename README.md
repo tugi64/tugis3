@@ -32,7 +32,7 @@ Modern Android uygulaması - Jetpack Compose ile geliştirilmiştir.
 - **Firebase** – Crashlytics & Analytics (koşullu aktivasyon)
 - **Detekt / Ktlint** – Kod kalitesi
 
-## 🧱 Mimari Genel Bakış
+## 🧑‍🏫 Mimari Genel Bakış
 
 - Data: Room DAO + Repository (+ updatePointBasic ile kısmi güncelleme)
 - DI: Hilt SingletonComponent modülleri (`AppModule` + `AppDatabaseMigrations`)
@@ -65,7 +65,7 @@ KSP Argümanları:
 - `ksp.incremental=true`
 - `android.enableJetifier=false` (gerekirse geri açılabilir)
 
-## 🔐 R8 / Shrink
+## 🔒 R8 / Shrink
 
 Release:
 - `isMinifyEnabled=true`, `isShrinkResources=true`
@@ -133,14 +133,21 @@ Windows CMD karşılığı `gradlew.bat`.
 ./gradlew :app:testDebugUnitTest
 # Instrumented test (emulator/cihaz gerekir)
 ./gradlew :app:connectedDebugAndroidTest
-# Detekt
+# Detekt (tüm modüller)
 ./gradlew detekt
-# Ktlint kontrol
+# Ktlint kontrol (tüm modüller)
 ./gradlew ktlintCheck
-# Ktlint otomatik format
+# Ktlint otomatik format (tüm modüller)
 ./gradlew ktlintFormat
+# Toplu kalite (Detekt + Ktlint) [root-level]
+./gradlew quality
+# Toplu format [root-level]
+./gradlew format
 ```
-Windows için `./gradlew` yerine `gradlew.bat`.
+Windows için `./gradlew` yerine `gradlew.bat` kullan.
+
+Notlar:
+- Kök dizine `.editorconfig` ve `.gitattributes` eklendi (satır sonu/LF, import düzeni, vs.)
 
 Örnek testler:
 - `PointRepositoryTest` – Fake DAO birim testi (updatePointBasic dahil)
@@ -149,7 +156,7 @@ Windows için `./gradlew` yerine `gradlew.bat`.
 - `MigrationPlaceholderTest` – Şema sütunu doğrulama
 - `RealMigrationTest` – Gerçek v5 -> v6 migration
 
-## 🛠️ Repository Özel (updatePointBasic)
+## 🧰 Repository Özel (updatePointBasic)
 `PointRepository.updatePointBasic(id, name, northing, easting)` temel kısmi güncellemeyi yapar ve `updatedAt` zaman damgasını otomatik günceller.
 
 ## 🤖 CI

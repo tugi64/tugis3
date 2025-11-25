@@ -133,4 +133,27 @@ class MigrationTest {
         db.openHelper.writableDatabase // tetikle
         db.close()
     }
+
+    @Test
+    fun migrate5To31_fullChain_gisFeaturesColumnsPresent() {
+        val name = "migration-full-5-31.db"
+        var db = helper.createDatabase(name, 5)
+        db.close()
+        db = helper.runMigrationsAndValidate(name, 31, true, *AppDatabaseMigrations.ALL)
+        // gis_features tablo kolon kontrolü (opsiyonel tablo yoksa oluşturulmuş olmalı)
+        db.query("PRAGMA table_info(gis_features)").use { c ->
+            var hasLayer = false
+            var hasGeom = false
+            val idxName = c.getColumnIndex("name")
+            while (c.moveToNext()) {
+                when (c.getString(idxName)) {
+                    "layer" -> hasLayer = true
+                    "geometryJson" -> hasGeom = true
+                }
+            }
+            assertTrue("gis_features.layer kolonu eklenmemiş", hasLayer)
+            assertTrue("gis_features.geometryJson kolonu eklenmemiş", hasGeom)
+        }
+        db.close()
+    }
 }

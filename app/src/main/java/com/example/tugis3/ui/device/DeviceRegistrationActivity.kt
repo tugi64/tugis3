@@ -148,7 +148,7 @@ fun DeviceRegistrationScreen(onBackPressed: () -> Unit) {
                                 readOnly = true,
                                 label = { Text("Lisans Tipi") },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = licenseExpanded) },
-                                modifier = Modifier.fillMaxWidth().menuAnchor(),
+                                modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
                                 enabled = !isRegistered
                             )
                             ExposedDropdownMenu(

@@ -2,14 +2,9 @@ package com.example.tugis3.data.db.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import androidx.room.Index
 
 @Entity(
-    tableName = "measurement_logs",
-    indices = [
-        Index("createdAt"),
-        Index("projectId")
-    ]
+    tableName = "measurement_logs"
 )
 data class MeasurementLogEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,

@@ -4,6 +4,8 @@ package com.example.tugis3.ui.cad
 import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import com.example.tugis3.core.cad.export.CadExportUtil
 import com.example.tugis3.core.cad.model.*
 import com.example.tugis3.core.cad.repository.CadRepository
@@ -17,9 +19,7 @@ import com.example.tugis3.data.repository.SurveyPointRepository
 import com.example.tugis3.gnss.GnssEngine
 import com.example.tugis3.gnss.model.GnssObservation
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
@@ -60,6 +60,10 @@ class CadViewModel @Inject constructor(
     private val _gridVisible = MutableStateFlow(true)
     val gridVisible: StateFlow<Boolean> = _gridVisible
 
+    // -------- Background Color --------
+    private val _backgroundColor = MutableStateFlow(0xFF000000) // Default black
+    val backgroundColor: StateFlow<Long> = _backgroundColor
+
     // -------- Dynamic Snap --------
     private val _dynamicSnap = MutableStateFlow(false)
     val dynamicSnap: StateFlow<Boolean> = _dynamicSnap
@@ -87,6 +91,45 @@ class CadViewModel @Inject constructor(
     private val _selectionMode = MutableStateFlow(false)
     val selectionMode: StateFlow<Boolean> = _selectionMode
     private val _selectedId = MutableStateFlow<Long?>(null)
+
+    // -------- Aplikasyon (Stakeout) Mode --------
+    enum class ApplicationMode {
+        NONE,
+        POINT_TO_POINT,           // İki nokta arası
+        SINGLE_POINT_DISTANCE,    // Tek noktadan mesafe/açı
+        OFFSET_DISTANCE,          // Çizgiye ofset
+        OFFSET_ANGLE              // Açılı ofset
+    }
+    private val _applicationMode = MutableStateFlow(ApplicationMode.NONE)
+    val applicationMode: StateFlow<ApplicationMode> = _applicationMode
+
+    data class ApplicationPoint(
+        val point: Point,
+        val entityId: Long?,
+        val description: String
+    )
+
+    private val _applicationPoints = MutableStateFlow<List<ApplicationPoint>>(emptyList())
+    val applicationPoints: StateFlow<List<ApplicationPoint>> = _applicationPoints
+
+    private val _applicationDistance = MutableStateFlow(0.0)
+    val applicationDistance: StateFlow<Double> = _applicationDistance
+
+    private val _applicationAngle = MutableStateFlow(0.0)
+    val applicationAngle: StateFlow<Double> = _applicationAngle
+
+    private val _applicationOffset = MutableStateFlow(0.0)
+    val applicationOffset: StateFlow<Double> = _applicationOffset
+
+    data class ApplicationResult(
+        val targetPoint: Point,
+        val distance: Double,
+        val bearing: Double,
+        val description: String
+    )
+
+    private val _applicationResult = MutableStateFlow<ApplicationResult?>(null)
+    val applicationResult: StateFlow<ApplicationResult?> = _applicationResult
 
     // -------- Project / Entities --------
     private val activeProject = projectRepo.observeActiveProject()
@@ -194,6 +237,68 @@ class CadViewModel @Inject constructor(
     // Yeni eklenen yardımcılar
     fun toggleMode() { _mode.value = if (_mode.value == MeasurementMode.DISTANCE) MeasurementMode.AREA else MeasurementMode.DISTANCE }
     fun toggleGrid() { _gridVisible.value = !_gridVisible.value }
+    fun setBackgroundColor(color: Long) { _backgroundColor.value = color }
+
+    // -------- Zoom Extents (Bounds) --------
+    data class Bounds(val minE: Double, val maxE: Double, val minN: Double, val maxN: Double, val centerLat: Double, val centerLon: Double)
+
+    fun computeProjectBounds(): Bounds? {
+        val ents = entities.value
+        if (ents.isEmpty()) return null
+
+        var minE = Double.MAX_VALUE
+        var maxE = -Double.MAX_VALUE
+        var minN = Double.MAX_VALUE
+        var maxN = -Double.MAX_VALUE
+
+        ents.forEach { entity ->
+            when (entity) {
+                is CadPoint -> {
+                    minE = minOf(minE, entity.position.x)
+                    maxE = maxOf(maxE, entity.position.x)
+                    minN = minOf(minN, entity.position.y)
+                    maxN = maxOf(maxN, entity.position.y)
+                }
+                is CadLine -> {
+                    minE = minOf(minE, entity.start.x, entity.end.x)
+                    maxE = maxOf(maxE, entity.start.x, entity.end.x)
+                    minN = minOf(minN, entity.start.y, entity.end.y)
+                    maxN = maxOf(maxN, entity.start.y, entity.end.y)
+                }
+                is CadPolyline -> {
+                    entity.points.forEach { pt ->
+                        minE = minOf(minE, pt.x)
+                        maxE = maxOf(maxE, pt.x)
+                        minN = minOf(minN, pt.y)
+                        maxN = maxOf(maxN, pt.y)
+                    }
+                }
+                is CadCircle -> {
+                    minE = minOf(minE, entity.center.x - entity.radius)
+                    maxE = maxOf(maxE, entity.center.x + entity.radius)
+                    minN = minOf(minN, entity.center.y - entity.radius)
+                    maxN = maxOf(maxN, entity.center.y + entity.radius)
+                }
+                is CadPolygon -> {
+                    entity.rings.flatten().forEach { pt ->
+                        minE = minOf(minE, pt.x)
+                        maxE = maxOf(maxE, pt.x)
+                        minN = minOf(minN, pt.y)
+                        maxN = maxOf(maxN, pt.y)
+                    }
+                }
+                else -> {}
+            }
+        }
+
+        if (minE == Double.MAX_VALUE) return null
+
+        val centerE = (minE + maxE) / 2.0
+        val centerN = (minN + maxN) / 2.0
+        val (centerLat, centerLon) = localToLatLon(centerE, centerN) ?: return null
+
+        return Bounds(minE, maxE, minN, maxN, centerLat, centerLon)
+    }
 
     // -------- GNSS / Transform --------
     private fun startGnss() { gnssEngine.start() }
@@ -403,10 +508,124 @@ class CadViewModel @Inject constructor(
     fun addText(p: Point, text: String, h: Double = 2.5, layer: String = "0") { viewModelScope.launch { addEntityPersist(CadText(p,h,text,layer=layer)) } }
     fun addPolyline(points: List<Point>, closed: Boolean, layer: String = "0") { viewModelScope.launch { addEntityPersist(CadPolyline(points,isClosed=closed,layer=layer)) } }
     fun loadFromUri(resolver: android.content.ContentResolver, uri: android.net.Uri) { viewModelScope.launch(Dispatchers.IO) {
-        val proj = activeProject.value ?: return@launch
-        val ents = runCatching { repo.loadDxf(resolver, uri) }.getOrElse { emptyList() }
+        val proj = activeProject.value ?: run {
+            android.util.Log.e("CAD", "loadFromUri: Aktif proje yok!")
+            _status.value = "❌ Önce bir proje seçin"
+            return@launch
+        }
+
+        // Dosya uzantısını kontrol et
+        val fileName = uri.lastPathSegment ?: ""
+        val ext = fileName.lowercase().substringAfterLast('.', "")
+        android.util.Log.d("CAD", "loadFromUri: Dosya=$fileName, ext=$ext")
+
+        // DWG dosyası mı kontrol et
+        if (ext == "dwg") {
+            android.util.Log.w("CAD", "DWG dosyası seçildi - desteklenmiyor")
+            _status.value = """⚠️ DWG formatı desteklenmiyor!
+                |
+                |Lütfen DXF formatına çevirin:
+                |• AutoCAD: File → Save As → DXF
+                |• Online: dwgconvert.com
+                |• QGIS: Export → DXF""".trimMargin()
+            return@launch
+        }
+
+        // Yükleme başladı
+        _status.value = "🔄 $fileName yükleniyor..."
+        android.util.Log.d("CAD", "DXF parse başladı...")
+
+        // DXF ve diğer formatlar için yükle
+        val ents = runCatching {
+            repo.loadDxf(resolver, uri)
+        }.getOrElse { ex ->
+            android.util.Log.e("CAD", "DXF parse HATA: ${ex.message}", ex)
+            _status.value = "❌ Dosya okunamadı: ${ex.message}\n\nDosya DXF R12+ formatında mı?"
+            return@launch
+        }
+
+        android.util.Log.d("CAD", "DXF parse tamamlandı: ${ents.size} entity")
+
+        if (ents.isEmpty()) {
+            android.util.Log.w("CAD", "Dosyada entity yok!")
+            _status.value = """⚠️ Dosya boş veya desteklenmeyen entity'ler var
+                |
+                |Desteklenen: LINE, POLYLINE, CIRCLE, ARC, TEXT
+                |Dosya formatı: DXF R12 veya üstü""".trimMargin()
+            return@launch
+        }
+
+        // Entity'leri veritabanına kaydet
+        android.util.Log.d("CAD", "Entity'ler kaydediliyor...")
         ents.forEach { cadStore.addEntity(proj.id, it) }
-        _status.value = "Imported ${ents.size} entities"
+
+        // Katmanları çıkar ve güncelle
+        val uniqueLayers = ents.map { it.layer }.distinct()
+        android.util.Log.d("CAD", "Katmanlar: ${uniqueLayers.joinToString()}")
+
+        // Katman listesini güncelle (mevcut katmanlarla birleştir)
+        val currentLayers = _layers.value.toSet()
+        val newLayers = (currentLayers + uniqueLayers).sorted()
+        _layers.value = newLayers
+
+        // Yeni katmanları otomatik aktif et
+        val currentActive = _activeLayers.value
+        _activeLayers.value = (currentActive + uniqueLayers).toSet()
+
+        android.util.Log.d("CAD", "Katmanlar güncellendi: ${_layers.value.size} katman, ${_activeLayers.value.size} aktif")
+
+        // Auto-zoom: Tüm entity'lerin bounding box'ını hesapla
+        val allPoints = ents.flatMap { entity ->
+            when (entity) {
+                is CadLine -> listOf(entity.start, entity.end)
+                is CadPolyline -> entity.points
+                is CadCircle -> {
+                    val c = entity.center; val r = entity.radius
+                    listOf(Point(c.x - r, c.y - r), Point(c.x + r, c.y + r))
+                }
+                is CadArc -> {
+                    val c = entity.center; val r = entity.radius
+                    listOf(Point(c.x - r, c.y - r), Point(c.x + r, c.y + r))
+                }
+                is CadText -> listOf(entity.position)
+                is CadPoint -> listOf(entity.position)
+                else -> emptyList()
+            }
+        }
+
+        if (allPoints.isNotEmpty()) {
+            val minX = allPoints.minOf { it.x }
+            val maxX = allPoints.maxOf { it.x }
+            val minY = allPoints.minOf { it.y }
+            val maxY = allPoints.maxOf { it.y }
+
+            val centerX = (minX + maxX) / 2.0
+            val centerY = (minY + maxY) / 2.0
+            val width = maxX - minX
+            val height = maxY - minY
+            val maxDim = max(width, height)
+
+            android.util.Log.d("CAD", "Auto-zoom: center=($centerX, $centerY), extent=${maxDim}m")
+
+            // Zoom seviyesini ayarla (tüm çizim görünsün diye biraz margin ekle)
+            val targetZoom = when {
+                maxDim < 10 -> 20f
+                maxDim < 50 -> 18f
+                maxDim < 200 -> 16f
+                maxDim < 1000 -> 14f
+                maxDim < 5000 -> 12f
+                else -> 10f
+            }
+
+            // Main thread'e geç ve zoom'u ayarla
+            viewModelScope.launch(Dispatchers.Main) {
+                _lastZoom.value = targetZoom
+                android.util.Log.d("CAD", "Zoom ayarlandı: $targetZoom (extent: ${maxDim}m)")
+            }
+        }
+
+        _status.value = "✅ ${ents.size} varlık yüklendi (${uniqueLayers.size} katman)\n📐 Zoom yapıldı"
+        android.util.Log.i("CAD", "Yükleme tamamlandı: ${ents.size} entity, ${uniqueLayers.size} katman")
     } }
     fun undoEntityLast() { val last = cadItems.value.maxByOrNull { it.id }?.id ?: return; viewModelScope.launch { cadStore.deleteEntity(last) } }
     fun exportAllGeoJson(context: android.content.Context, circleSegments: Int = 64, arcSegAngle: Double = 10.0): Result<File> = runCatching {
@@ -457,6 +676,391 @@ class CadViewModel @Inject constructor(
         return outer - holes
     }
 
+    // -------- Aplikasyon (Stakeout) İşlemleri --------
+    /**
+     * Aplikasyon modunu başlat/değiştir
+     */
+    fun startApplicationMode(mode: ApplicationMode) {
+        _applicationMode.value = mode
+        _applicationPoints.value = emptyList()
+        _applicationResult.value = null
+        _status.value = when(mode) {
+            ApplicationMode.NONE -> "Aplikasyon modu kapatıldı"
+            ApplicationMode.POINT_TO_POINT -> "İki nokta seçin (çizgi uçları veya kırık noktalar)"
+            ApplicationMode.SINGLE_POINT_DISTANCE -> "Bir nokta seçin ve mesafe/açı girin"
+            ApplicationMode.OFFSET_DISTANCE -> "Bir çizgi seçin ve mesafe girin"
+            ApplicationMode.OFFSET_ANGLE -> "İki nokta seçin ve açı/mesafe girin"
+        }
+    }
+
+    /**
+     * Aplikasyon modunu kapat
+     */
+    fun stopApplicationMode() {
+        _applicationMode.value = ApplicationMode.NONE
+        _applicationPoints.value = emptyList()
+        _applicationResult.value = null
+        _status.value = "Aplikasyon iptal edildi"
+    }
+
+    /**
+     * Çizimden nokta seç (çizgi ucu, kırık nokta, kesişim noktası vb.)
+     */
+    fun selectApplicationPoint(point: Point, entity: CadEntity?) {
+        val mode = _applicationMode.value
+        if (mode == ApplicationMode.NONE) return
+
+        val currentPoints = _applicationPoints.value
+        val entityId = entity?.let { cadItems.value.firstOrNull { it.entity == entity }?.id }
+
+        when (mode) {
+            ApplicationMode.POINT_TO_POINT -> {
+                if (currentPoints.size < 2) {
+                    val desc = "Nokta ${currentPoints.size + 1}"
+                    _applicationPoints.value = currentPoints + ApplicationPoint(point, entityId, desc)
+
+                    if (_applicationPoints.value.size == 2) {
+                        calculatePointToPointApplication()
+                    } else {
+                        _status.value = "İkinci noktayı seçin"
+                    }
+                }
+            }
+            ApplicationMode.SINGLE_POINT_DISTANCE -> {
+                if (currentPoints.isEmpty()) {
+                    val desc = "Referans Nokta"
+                    _applicationPoints.value = currentPoints + ApplicationPoint(point, entityId, desc)
+                    _status.value = "Mesafe veya açı girin"
+                } else {
+                    // Mesafe veya açı hesapla
+                    calculateSinglePointApplication(currentPoints[0].point, point)
+                }
+            }
+            ApplicationMode.OFFSET_DISTANCE -> {
+                if (currentPoints.size < 2) {
+                    val desc = if (currentPoints.isEmpty()) "Başlangıç" else "Bitiş"
+                    _applicationPoints.value = currentPoints + ApplicationPoint(point, entityId, desc)
+
+                    if (_applicationPoints.value.size == 2) {
+                        _status.value = "Ofset mesafesini girin"
+                    } else {
+                        _status.value = "Çizgi bitiş noktasını seçin"
+                    }
+                }
+            }
+            ApplicationMode.OFFSET_ANGLE -> {
+                if (currentPoints.size < 2) {
+                    val desc = if (currentPoints.isEmpty()) "Başlangıç" else "Yön noktası"
+                    _applicationPoints.value = currentPoints + ApplicationPoint(point, entityId, desc)
+
+                    if (_applicationPoints.value.size == 2) {
+                        _status.value = "Açı ve mesafeyi girin"
+                    } else {
+                        _status.value = "Yön noktasını seçin"
+                    }
+                }
+            }
+            ApplicationMode.NONE -> {}
+        }
+    }
+
+    /**
+     * İki nokta arası aplikasyon hesapla
+     */
+    private fun calculatePointToPointApplication() {
+        val points = _applicationPoints.value
+        if (points.size != 2) return
+
+        val p1 = points[0].point
+        val p2 = points[1].point
+
+        val distance = hypot(p2.x - p1.x, p2.y - p1.y)
+        val bearing = Math.toDegrees(atan2(p2.x - p1.x, p2.y - p1.y)).let {
+            if (it < 0) it + 360 else it
+        }
+
+        _applicationResult.value = ApplicationResult(
+            targetPoint = p2,
+            distance = distance,
+            bearing = bearing,
+            description = "P1 → P2: %.3f m, %.1f°".format(distance, bearing)
+        )
+
+        _status.value = "✓ Aplikasyon hesaplandı: %.3f m, Açı: %.1f°".format(distance, bearing)
+    }
+
+    /**
+     * Tek noktadan mesafe/açı aplikasyonu hesapla
+     */
+    private fun calculateSinglePointApplication(reference: Point, target: Point) {
+        val dx = target.x - reference.x
+        val dy = target.y - reference.y
+        val distance = hypot(dx, dy)
+        val bearing = Math.toDegrees(atan2(dx, dy)).let {
+            if (it < 0) it + 360 else it
+        }
+
+        _applicationResult.value = ApplicationResult(
+            targetPoint = target,
+            distance = distance,
+            bearing = bearing,
+            description = "Mesafe: %.3f m, Açı: %.1f°".format(distance, bearing)
+        )
+
+        _applicationDistance.value = distance
+        _applicationAngle.value = bearing
+        _status.value = "✓ Mesafe/açı hesaplandı: %.3f m, %.1f°".format(distance, bearing)
+    }
+
+    /**
+     * Mesafe ile ofset aplikasyon
+     */
+    fun calculateOffsetByDistance(offsetDistance: Double) {
+        val points = _applicationPoints.value
+        if (points.size != 2) {
+            _status.value = "İki nokta seçmelisiniz"
+            return
+        }
+
+        val p1 = points[0].point
+        val p2 = points[1].point
+
+        // Çizgi vektörü
+        val dx = p2.x - p1.x
+        val dy = p2.y - p1.y
+        val lineLength = hypot(dx, dy)
+
+        if (lineLength < 1e-6) {
+            _status.value = "Geçersiz çizgi"
+            return
+        }
+
+        // Dik vektör (90° sola)
+        val perpX = -dy / lineLength
+        val perpY = dx / lineLength
+
+        // Ofset noktası
+        val targetX = p1.x + perpX * offsetDistance
+        val targetY = p1.y + perpY * offsetDistance
+        val targetPoint = Point(targetX, targetY)
+
+        val bearing = Math.toDegrees(atan2(targetX - p1.x, targetY - p1.y)).let {
+            if (it < 0) it + 360 else it
+        }
+
+        _applicationResult.value = ApplicationResult(
+            targetPoint = targetPoint,
+            distance = abs(offsetDistance),
+            bearing = bearing,
+            description = "Ofset: %.3f m dik mesafe".format(abs(offsetDistance))
+        )
+
+        _applicationOffset.value = offsetDistance
+        _status.value = "✓ Ofset aplikasyon: %.3f m".format(abs(offsetDistance))
+    }
+
+    /**
+     * Açı ve mesafe ile aplikasyon
+     */
+    fun calculateOffsetByAngleDistance(angle: Double, distance: Double) {
+        val points = _applicationPoints.value
+        if (points.size != 2) {
+            _status.value = "İki nokta seçmelisiniz"
+            return
+        }
+
+        val p1 = points[0].point
+        val p2 = points[1].point
+
+        // Referans yön
+        val baseAngle = Math.toDegrees(atan2(p2.x - p1.x, p2.y - p1.y))
+
+        // Hedef açı (referansa göre)
+        val targetAngle = baseAngle + angle
+        val rad = Math.toRadians(targetAngle)
+
+        // Hedef nokta
+        val targetX = p1.x + sin(rad) * distance
+        val targetY = p1.y + cos(rad) * distance
+        val targetPoint = Point(targetX, targetY)
+
+        _applicationResult.value = ApplicationResult(
+            targetPoint = targetPoint,
+            distance = distance,
+            bearing = (targetAngle + 360) % 360,
+            description = "Açı: %.1f°, Mesafe: %.3f m".format(angle, distance)
+        )
+
+        _applicationDistance.value = distance
+        _status.value = "✓ Açılı aplikasyon: %.1f° × %.3f m".format(angle, distance)
+    }
+
+    /**
+     * Çizimden nokta seçimi için yardımcı fonksiyon
+     */
+    fun findDrawingPoints(entity: CadEntity): List<Point> {
+        return when (entity) {
+            is CadLine -> listOf(entity.start, entity.end)
+            is CadPolyline -> entity.points
+            is CadPolygon -> entity.rings.firstOrNull() ?: emptyList()
+            is CadCircle -> listOf(
+                Point(entity.center.x + entity.radius, entity.center.y),
+                Point(entity.center.x - entity.radius, entity.center.y),
+                Point(entity.center.x, entity.center.y + entity.radius),
+                Point(entity.center.x, entity.center.y - entity.radius)
+            )
+            is CadArc -> {
+                val startRad = Math.toRadians(entity.startAngleDeg)
+                val endRad = Math.toRadians(entity.endAngleDeg)
+                listOf(
+                    Point(
+                        entity.center.x + sin(startRad) * entity.radius,
+                        entity.center.y + cos(startRad) * entity.radius
+                    ),
+                    Point(
+                        entity.center.x + sin(endRad) * entity.radius,
+                        entity.center.y + cos(endRad) * entity.radius
+                    )
+                )
+            }
+            is CadPoint -> listOf(entity.position)
+            is CadText -> listOf(entity.position)
+            else -> emptyList()
+        }
+    }
+
+    /**
+     * En yakın çizim noktasını bul
+     */
+    fun findNearestDrawingPoint(screenPoint: Point, tolerance: Double = 10.0): Pair<Point, CadEntity?>? {
+        var nearest: Pair<Point, CadEntity?>? = null
+        var minDist = tolerance
+
+        entities.value.forEach { entity ->
+            val points = findDrawingPoints(entity)
+            points.forEach { point ->
+                val dist = hypot(point.x - screenPoint.x, point.y - screenPoint.y)
+                if (dist < minDist) {
+                    minDist = dist
+                    nearest = point to entity
+                }
+            }
+        }
+
+        return nearest
+    }
+
+    /**
+     * Aplikasyon hedefine git (GPS ile)
+     */
+    fun navigateToApplicationTarget(): Boolean {
+        val result = _applicationResult.value ?: return false
+        val obs = observation.value ?: return false
+
+        if (obs.latDeg == null || obs.lonDeg == null) {
+            _status.value = "GPS sinyali yok"
+            return false
+        }
+
+        val transformer = activeProject.value?.let { ProjectionEngine.forProject(it) } ?: NoOpTransformer
+        val (curE, curN) = runCatching {
+            transformer.forward(obs.latDeg, obs.lonDeg)
+        }.getOrElse {
+            _status.value = "Koordinat dönüşüm hatası"
+            return false
+        }
+
+        val targetE = result.targetPoint.x
+        val targetN = result.targetPoint.y
+
+        val dE = targetE - curE
+        val dN = targetN - curN
+        val dist = hypot(dE, dN)
+        val bearing = Math.toDegrees(atan2(dE, dN)).let { if (it < 0) it + 360 else it }
+
+        _stakeout.value = CadStakeoutState(
+            hasFix = true,
+            fixLabel = obs.fixType.name,
+            currentE = curE,
+            currentN = curN,
+            targetE = targetE,
+            targetN = targetN,
+            deltaE = dE,
+            deltaN = dN,
+            horizontalDistance = dist,
+            bearingDeg = bearing,
+            entityType = "Aplikasyon",
+            canSave = dist < 0.05,
+            message = if (dist < 0.05) "✅ Hedefteyiz" else "→ %.3f m, %.1f°".format(dist, bearing)
+        )
+
+        return true
+    }
+
+    /**
+     * Aplikasyon noktasını kaydet
+     */
+    fun saveApplicationPoint(): Boolean {
+        val result = _applicationResult.value ?: return false
+        val proj = activeProject.value ?: return false
+
+        viewModelScope.launch {
+            val name = "APL_${System.currentTimeMillis().toString().takeLast(5)}"
+            surveyPointRepo.insert(
+                SurveyPointEntity(
+                    projectId = proj.id,
+                    name = name,
+                    code = "APLIKASYON",
+                    latitude = null,
+                    longitude = null,
+                    elevation = null,
+                    northing = result.targetPoint.y,
+                    easting = result.targetPoint.x,
+                    zone = proj.utmZone?.let { it.toString() + if (proj.utmNorthHemisphere) "N" else "S" },
+                    hrms = observation.value?.hrms,
+                    vrms = observation.value?.vrms,
+                    pdop = observation.value?.pdop,
+                    satellites = observation.value?.satellitesInUse,
+                    fixType = observation.value?.fixType?.name,
+                    antennaHeight = null,
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+            _status.value = "✓ Aplikasyon noktası kaydedildi: $name"
+        }
+
+        return true
+    }
+
+    // -------- Camera Control for CAD View --------
+    private val _cameraPosition = MutableStateFlow<Pair<Double, Double>?>(null)
+    val cameraPosition: StateFlow<Pair<Double, Double>?> = _cameraPosition.asStateFlow()
+
+    private val _cameraZoom = MutableStateFlow(1.0)
+    val cameraZoom: StateFlow<Double> = _cameraZoom.asStateFlow()
+
+    fun setCameraPosition(easting: Double, northing: Double) {
+        _cameraPosition.value = easting to northing
+    }
+
+    fun fitBounds(minE: Double, minN: Double, maxE: Double, maxN: Double) {
+        // Merkezi ayarla
+        val centerE = (minE + maxE) / 2.0
+        val centerN = (minN + maxN) / 2.0
+        _cameraPosition.value = centerE to centerN
+
+        // Zoom seviyesini hesapla (tüm projeyi gösterecek şekilde)
+        val width = maxE - minE
+        val height = maxN - minN
+        val maxDimension = maxOf(width, height)
+
+        // Zoom'u ayarla (daha büyük değer = daha uzaktan bakış)
+        // Ekran boyutuna göre otomatik ayarlama yapılabilir
+        _cameraZoom.value = maxDimension / 100.0 // Basit bir zoom hesabı
+    }
+
+    // ...existing code...
+
     // -------- Companion Utilities --------
     companion object {
         fun polylineLength(points: List<Point>) = com.example.tugis3.core.cad.geom.polylineLength(points)
@@ -496,5 +1100,54 @@ class CadViewModel @Inject constructor(
             val projX = a.x + t*dx; val projY = a.y + t*dy
             return sqrt((p.x-projX).pow(2) + (p.y-projY).pow(2))
         }
+    }
+
+    /**
+     * Zoom In - Yakınlaştır
+     */
+    fun zoomIn() {
+        val currentZoom = _lastZoom.value
+        val newZoom = (currentZoom * 1.2f).coerceAtMost(30f) // Max 30x zoom
+        _lastZoom.value = newZoom
+
+        // Dynamic snap enabled ise snap tolerance'ı güncelle
+        if (_dynamicSnap.value) {
+            updateDynamicSnapTolerance(newZoom)
+        }
+    }
+
+    /**
+     * Zoom Out - Uzaklaştır
+     */
+    fun zoomOut() {
+        val currentZoom = _lastZoom.value
+        val newZoom = (currentZoom / 1.2f).coerceAtLeast(1f) // Min 1x zoom
+        _lastZoom.value = newZoom
+
+        // Dynamic snap enabled ise snap tolerance'ı güncelle
+        if (_dynamicSnap.value) {
+            updateDynamicSnapTolerance(newZoom)
+        }
+    }
+
+    /**
+     * Zoom seviyesini ayarla
+     */
+    fun setZoom(zoom: Float) {
+        _lastZoom.value = zoom.coerceIn(1f, 30f)
+
+        if (_dynamicSnap.value) {
+            updateDynamicSnapTolerance(zoom)
+        }
+    }
+
+    /**
+     * Dynamic snap tolerance'ı zoom seviyesine göre güncelle
+     */
+    private fun updateDynamicSnapTolerance(zoom: Float) {
+        // Zoom arttıkça snap tolerance azalır (daha hassas seçim)
+        val baseSnap = _snapTolerancePx.value
+        val adjusted = (baseSnap / (zoom / 18f)).toInt().coerceIn(5, 64)
+        _effectiveSnapTolerancePx.value = adjusted
     }
 }

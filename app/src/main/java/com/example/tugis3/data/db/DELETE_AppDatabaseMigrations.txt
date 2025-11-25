@@ -1,0 +1,4 @@
+// This file has been moved to core/data module
+// Use: com.example.tugis3.data.db.AppDatabaseMigrations from core/data
+// This placeholder file should be deleted
+

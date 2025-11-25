@@ -20,11 +20,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.AndroidEntryPoint
 import java.util.Locale
+import com.example.tugis3.prefs.CoordPrefs
 
 @AndroidEntryPoint
 class LocalizationActivity : ComponentActivity() {
@@ -59,6 +61,11 @@ private fun LocalizationScreen(onBack: () -> Unit, vm: LocalizationViewModel = a
     var northText by remember(st.dstNorthText) { mutableStateOf(st.dstNorthText) }
     var eastText by remember(st.dstEastText) { mutableStateOf(st.dstEastText) }
     var weightText by remember(st.weightText) { mutableStateOf(st.weightText) }
+    val context = LocalContext.current
+    val coordOrder by CoordPrefs.orderFlow(context).collectAsState(initial = CoordPrefs.CoordOrder.Y_FIRST)
+    val axisMap by CoordPrefs.axisMapFlow(context).collectAsState(initial = CoordPrefs.AxisMap.EASTING_TO_Y_NORTHING_TO_X)
+    val eLabel = if (axisMap == CoordPrefs.AxisMap.EASTING_TO_Y_NORTHING_TO_X) "Hedef Y (Doğu/Easting)" else "Hedef X (Doğu/Easting)"
+    val nLabel = if (axisMap == CoordPrefs.AxisMap.EASTING_TO_Y_NORTHING_TO_X) "Hedef X (Kuzey/Northing)" else "Hedef Y (Kuzey/Northing)"
 
     Scaffold(
         topBar = {
@@ -102,18 +109,33 @@ private fun LocalizationScreen(onBack: () -> Unit, vm: LocalizationViewModel = a
                 Card { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Kontrol Noktası Girişi", fontWeight = FontWeight.Bold)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(
-                            value = northText,
-                            onValueChange = { northText = it; vm.setDstNorth(it) },
-                            label = { Text("Hedef Northing") },
-                            modifier = Modifier.weight(1f)
-                        )
-                        OutlinedTextField(
-                            value = eastText,
-                            onValueChange = { eastText = it; vm.setDstEast(it) },
-                            label = { Text("Hedef Easting") },
-                            modifier = Modifier.weight(1f)
-                        )
+                        if (coordOrder == CoordPrefs.CoordOrder.X_FIRST) {
+                            OutlinedTextField(
+                                value = eastText,
+                                onValueChange = { eastText = it; vm.setDstEast(it) },
+                                label = { Text(eLabel) },
+                                modifier = Modifier.weight(1f)
+                            )
+                            OutlinedTextField(
+                                value = northText,
+                                onValueChange = { northText = it; vm.setDstNorth(it) },
+                                label = { Text(nLabel) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        } else {
+                            OutlinedTextField(
+                                value = northText,
+                                onValueChange = { northText = it; vm.setDstNorth(it) },
+                                label = { Text(nLabel) },
+                                modifier = Modifier.weight(1f)
+                            )
+                            OutlinedTextField(
+                                value = eastText,
+                                onValueChange = { eastText = it; vm.setDstEast(it) },
+                                label = { Text(eLabel) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         OutlinedTextField(
@@ -153,17 +175,26 @@ private fun LocalizationScreen(onBack: () -> Unit, vm: LocalizationViewModel = a
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text(
-                            "SRC N: %.3f E: %.3f".format(Locale.US, p.entity.srcNorth, p.entity.srcEast),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Text(
-                            "DST N: %.3f E: %.3f".format(Locale.US, p.entity.dstNorth, p.entity.dstEast),
-                            style = MaterialTheme.typography.bodySmall
-                        )
+                        val srcLine = if (axisMap == CoordPrefs.AxisMap.EASTING_TO_Y_NORTHING_TO_X) {
+                            "SRC Y: %.3f X: %.3f".format(Locale.US, p.entity.srcEast, p.entity.srcNorth)
+                        } else {
+                            "SRC X: %.3f Y: %.3f".format(Locale.US, p.entity.srcEast, p.entity.srcNorth)
+                        }
+                        val dstLine = if (axisMap == CoordPrefs.AxisMap.EASTING_TO_Y_NORTHING_TO_X) {
+                            "DST Y: %.3f X: %.3f".format(Locale.US, p.entity.dstEast, p.entity.dstNorth)
+                        } else {
+                            "DST X: %.3f Y: %.3f".format(Locale.US, p.entity.dstEast, p.entity.dstNorth)
+                        }
+                        Text(srcLine, style = MaterialTheme.typography.bodySmall)
+                        Text(dstLine, style = MaterialTheme.typography.bodySmall)
                         if (p.residualE != null && p.residualN != null) {
+                            val resLine = if (axisMap == CoordPrefs.AxisMap.EASTING_TO_Y_NORTHING_TO_X) {
+                                "dY=%.003f dX=%.003f".format(Locale.US, p.residualE, p.residualN)
+                            } else {
+                                "dX=%.003f dY=%.003f".format(Locale.US, p.residualE, p.residualN)
+                            }
                             Text(
-                                "dE=%.003f dN=%.003f".format(Locale.US, p.residualE, p.residualN),
+                                resLine,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.secondary
                             )

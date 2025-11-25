@@ -1,0 +1,63 @@
+╔═══════════════════════════════════════════════════════════╗
+║          📱 HIZLI TEST KONTROL LİSTESİ                  ║
+╚═══════════════════════════════════════════════════════════╝
+
+✅ APK BAŞARIYLA YÜKLENDİ!
+
+Şimdi bu özellikleri test edin:
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ 🎯 ÖNCELİKLİ TEST                                      ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  [ ] 1. DOSYA YÖNET menüsü çalışıyor mu?
+  [ ] 2. .NCN formatı destekleniyor mu?
+  [ ] 3. CAD dosya açma telefon hafızasından yapılıyor mu?
+  [ ] 4. GEZICI/ROVER menüsü var mı?
+  [ ] 5. Bluetooth bağlantısız uyarı veriyor mu?
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ 📋 GENEL İŞLEVLER                                      ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  [ ] Uygulama açılıyor
+  [ ] İzinler isteniyor (Konum, Bluetooth, Depolama, Kamera)
+  [ ] Ana menü görünüyor
+  [ ] Proje oluşturuluyor
+  [ ] GPS koordinat alıyor
+  [ ] Bluetooth cihazları görünüyor
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ ⚠️  SORUN OLURSA                                       ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  🐛 Crash oluyor → Log alın:
+     adb logcat > crash_log.txt
+
+  📍 GPS çalışmıyor → Konum izni verin + Açık havada test
+
+  📶 Bluetooth yok → Bluetooth izni verin
+
+  💾 Dosya kayıt yok → Depolama izni verin
+
+═══════════════════════════════════════════════════════════
+
+📝 TEST NOTLARI:
+
+Çalışan:
+_______________________________________________________
+
+Çalışmayan:
+_______________________________________________________
+
+Öneriler:
+_______________________________________________________
+
+═══════════════════════════════════════════════════════════
+
+✅ Test bitti mi? Sonuçları paylaşın!
+
+Detaylı test için: TEST_REHBERI.md dosyasına bakın.
+
+═══════════════════════════════════════════════════════════
+

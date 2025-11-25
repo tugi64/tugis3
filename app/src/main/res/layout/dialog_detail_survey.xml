@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- GNSS Durum Bilgileri -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Çözüm Durumu:"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvSolutionStatus"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="RTK Fix"
+                android:textColor="#4CAF50" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Uydu Sayısı:"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvSatelliteStatus"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="12" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Batarya Durumu:"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvBatteryStatus"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="95%" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Nokta Adı:"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvPointName"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="P001" />
+
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#CCCCCC"
+            android:layout_marginVertical="16dp" />
+
+        <!-- Detay Kod Seçimi -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Detay Kodu"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+
+        <RadioGroup
+            android:id="@+id/rgDetailCode"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp">
+
+            <RadioButton
+                android:id="@+id/rbEmptyCode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Boş Kod"
+                android:checked="true" />
+
+            <RadioButton
+                android:id="@+id/rbRoadCenter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Toprak Yol Kenarı" />
+
+            <RadioButton
+                android:id="@+id/rbAsphaltEdge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Asfalt Yol Kenarı" />
+
+            <RadioButton
+                android:id="@+id/rbRoadCenter2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Yol Ortası" />
+
+            <RadioButton
+                android:id="@+id/rbCurb"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Kaldırım" />
+
+            <RadioButton
+                android:id="@+id/rbTreeTop"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Sev Üstü" />
+
+            <RadioButton
+                android:id="@+id/rbTreeBottom"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Sev Altı" />
+
+        </RadioGroup>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Anten Yüksekliği (m)"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/etDetailAntennaHeight"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="numberDecimal"
+            android:text="2.0"
+            android:layout_marginBottom="16dp" />
+
+        <CheckBox
+            android:id="@+id/cbMorePreciseWarning"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Daha Hassas Uyarı" />
+
+    </LinearLayout>
+
+</ScrollView>

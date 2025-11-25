@@ -3,9 +3,9 @@ package com.example.tugis3.ui.tools
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -13,149 +13,262 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import java.util.Locale
-import kotlin.math.PI
-import kotlin.math.abs
-import kotlin.math.floor
+import com.example.tugis3.ui.theme.Tugis3Theme
+import dagger.hilt.android.AndroidEntryPoint
+import kotlin.math.*
 
-// NOT: Eski AngleConverterActivity yeniden adlandırıldı -> AngleConversionActivity (redeclaration hatasını çözmek için)
-class AngleConversionActivity : ComponentActivity() {
+@OptIn(ExperimentalMaterial3Api::class)
+@AndroidEntryPoint
+class AngleConverterActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { AngleConverterScreen(onBack = { finish() }) }
+        setContent {
+            Tugis3Theme {
+                AngleConverterScreen(
+                    onBackPressed = { finish() }
+                )
+            }
+        }
     }
 }
 
-private enum class AngleInputMode(val label: String) { DECIMAL("Ondalık Derece"), DMS("DMS"), RAD("Radyan"), GON("Gon") }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AngleConverterScreen(onBack: () -> Unit) {
-    var mode by remember { mutableStateOf(AngleInputMode.DECIMAL) }
-    var rawInput by remember { mutableStateOf("") }
-    val focusManager = LocalFocusManager.current
-
-    val decimalDeg: Double? = remember(mode, rawInput) {
-        if (rawInput.isBlank()) return@remember null
-        when (mode) {
-            AngleInputMode.DECIMAL -> rawInput.toSmartDouble()
-            AngleInputMode.RAD -> rawInput.toSmartDouble()?.let { it * 180.0 / PI }
-            AngleInputMode.GON -> rawInput.toSmartDouble()?.let { it * 0.9 }
-            AngleInputMode.DMS -> parseDms(rawInput)
-        }
-    }
-
-    val rad = decimalDeg?.let { it * PI / 180.0 }
-    val gon = decimalDeg?.let { it / 0.9 }
-    val dms = decimalDeg?.let { toDms(it) }
+fun AngleConverterScreen(onBackPressed: () -> Unit) {
+    var inputAngle by remember { mutableStateOf("") }
+    var degrees by remember { mutableStateOf("") }
+    var minutes by remember { mutableStateOf("") }
+    var seconds by remember { mutableStateOf("") }
+    var radians by remember { mutableStateOf("") }
+    var grads by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Açı Dönüştürme") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null) } }
+                title = { Text("Açı Dönüştürücü") },
+                navigationIcon = {
+                    IconButton(onClick = onBackPressed) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Geri")
+                    }
+                }
             )
         }
-    ) { pad ->
+    ) { padding ->
         Column(
-            Modifier
-                .padding(pad)
+            modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text("Girdi Formatı", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                AngleInputMode.entries.forEach { m ->
-                    FilterChip(selected = mode == m, onClick = { mode = m; rawInput = "" }, label = { Text(m.label) })
-                }
-            }
+            Text(
+                text = "Açı Dönüştürme",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
 
+            // Decimal Degrees Input
             OutlinedTextField(
-                value = rawInput,
-                onValueChange = { rawInput = it },
-                label = { Text("${mode.label} Girişi") },
-                supportingText = {
-                    Text(
-                        when (mode) {
-                            AngleInputMode.DECIMAL -> "Örn: 23.456 veya -10,25"
-                            AngleInputMode.RAD -> "Örn: 1.0471975512"
-                            AngleInputMode.GON -> "Örn: 120.5 (200 gon = 180°)"
-                            AngleInputMode.DMS -> "Örn: 30°15'20.5\" / 30 15 20.5 / 30:15:20.5"
-                        }
-                    )
+                value = inputAngle,
+                onValueChange = {
+                    inputAngle = it
+                    val angle = it.toDoubleOrNull()
+                    if (angle != null) {
+                        // Convert to DMS
+                        val deg = floor(abs(angle)).toInt()
+                        val minDecimal = (abs(angle) - deg) * 60
+                        val min = floor(minDecimal).toInt()
+                        val sec = (minDecimal - min) * 60
+
+                        degrees = if (angle < 0) "-$deg" else deg.toString()
+                        minutes = min.toString()
+                        seconds = String.format("%.4f", sec)
+
+                        // Convert to radians
+                        radians = String.format("%.6f", Math.toRadians(angle))
+
+                        // Convert to grads
+                        grads = String.format("%.4f", angle * 200.0 / 180.0)
+                    }
                 },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                label = { Text("Ondalık Derece") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.fillMaxWidth()
             )
 
             HorizontalDivider()
-            Text("Sonuçlar", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
-            if (decimalDeg == null) {
-                Text("Geçerli bir açı giriniz", color = MaterialTheme.colorScheme.error)
-            } else {
-                ResultRow("Ondalık Derece", String.format(Locale.US, "%.10f°", decimalDeg))
-                ResultRow("DMS", dms ?: "-")
-                ResultRow("Radyan", String.format(Locale.US, "%.12f", rad))
-                ResultRow("Gon", String.format(Locale.US, "%.10f gon", gon))
+            // DMS Input
+            Text(
+                text = "Derece-Dakika-Saniye (DMS)",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = degrees,
+                    onValueChange = {
+                        degrees = it
+                        updateFromDMS(degrees, minutes, seconds) { result ->
+                            inputAngle = result.inputAngle
+                            radians = result.radians
+                            grads = result.grads
+                        }
+                    },
+                    label = { Text("Derece") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f)
+                )
+
+                OutlinedTextField(
+                    value = minutes,
+                    onValueChange = {
+                        minutes = it
+                        updateFromDMS(degrees, minutes, seconds) { result ->
+                            inputAngle = result.inputAngle
+                            radians = result.radians
+                            grads = result.grads
+                        }
+                    },
+                    label = { Text("Dakika") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f)
+                )
+
+                OutlinedTextField(
+                    value = seconds,
+                    onValueChange = {
+                        seconds = it
+                        updateFromDMS(degrees, minutes, seconds) { result ->
+                            inputAngle = result.inputAngle
+                            radians = result.radians
+                            grads = result.grads
+                        }
+                    },
+                    label = { Text("Saniye") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.weight(1f)
+                )
             }
 
-            AssistChip(onClick = { focusManager.clearFocus() }, label = { Text("Klavyeyi Kapat") })
+            HorizontalDivider()
+
+            // Radians
+            OutlinedTextField(
+                value = radians,
+                onValueChange = {
+                    radians = it
+                    val rad = it.toDoubleOrNull()
+                    if (rad != null) {
+                        val angle = Math.toDegrees(rad)
+                        inputAngle = String.format("%.6f", angle)
+
+                        // Convert to DMS
+                        val deg = floor(abs(angle)).toInt()
+                        val minDecimal = (abs(angle) - deg) * 60
+                        val min = floor(minDecimal).toInt()
+                        val sec = (minDecimal - min) * 60
+
+                        degrees = if (angle < 0) "-$deg" else deg.toString()
+                        minutes = min.toString()
+                        seconds = String.format("%.4f", sec)
+
+                        // Convert to grads
+                        grads = String.format("%.4f", angle * 200.0 / 180.0)
+                    }
+                },
+                label = { Text("Radyan") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Grads
+            OutlinedTextField(
+                value = grads,
+                onValueChange = {
+                    grads = it
+                    val grad = it.toDoubleOrNull()
+                    if (grad != null) {
+                        val angle = grad * 180.0 / 200.0
+                        inputAngle = String.format("%.6f", angle)
+
+                        // Convert to DMS
+                        val deg = floor(abs(angle)).toInt()
+                        val minDecimal = (abs(angle) - deg) * 60
+                        val min = floor(minDecimal).toInt()
+                        val sec = (minDecimal - min) * 60
+
+                        degrees = if (angle < 0) "-$deg" else deg.toString()
+                        minutes = min.toString()
+                        seconds = String.format("%.4f", sec)
+
+                        // Convert to radians
+                        radians = String.format("%.6f", Math.toRadians(angle))
+                    }
+                },
+                label = { Text("Grad") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Bilgi",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text("• 1 tam daire = 360 derece")
+                    Text("• 1 tam daire = 2π radyan")
+                    Text("• 1 tam daire = 400 grad")
+                    Text("• 1 derece = 60 dakika = 3600 saniye")
+                }
+            }
         }
     }
 }
 
-@Composable
-private fun ResultRow(label: String, value: String) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            Modifier
-                .padding(12.dp)
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(label, fontWeight = FontWeight.Medium)
-            Text(value, style = MaterialTheme.typography.bodyMedium)
-        }
-    }
+data class DMSResult(
+    val inputAngle: String,
+    val radians: String,
+    val grads: String
+)
+
+private fun updateFromDMS(
+    degrees: String,
+    minutes: String,
+    seconds: String,
+    onResult: (DMSResult) -> Unit
+) {
+    val deg = degrees.toIntOrNull() ?: return
+    val min = minutes.toIntOrNull() ?: return
+    val sec = seconds.toDoubleOrNull() ?: return
+
+    val sign = if (deg < 0) -1.0 else 1.0
+    val angle = sign * (abs(deg) + min / 60.0 + sec / 3600.0)
+
+    val result = DMSResult(
+        inputAngle = String.format("%.6f", angle),
+        radians = String.format("%.6f", Math.toRadians(angle)),
+        grads = String.format("%.4f", angle * 200.0 / 180.0)
+    )
+
+    onResult(result)
 }
 
-private fun String.toSmartDouble(): Double? = this.trim().replace(',', '.').toDoubleOrNull()
-
-private fun parseDms(input: String): Double? {
-    val cleaned = input.lowercase()
-        .replace("d", " ")
-        .replace("°", " ")
-        .replace("'", " ")
-        .replace("\"", " ")
-        .replace("m", " ")
-        .replace("s", " ")
-        .replace(":", " ")
-        .trim()
-        .split(Regex("\\s+"))
-    if (cleaned.isEmpty()) return null
-    val deg = cleaned.getOrNull(0)?.toSmartDouble() ?: return null
-    val min = cleaned.getOrNull(1)?.toSmartDouble() ?: 0.0
-    val sec = cleaned.getOrNull(2)?.toSmartDouble() ?: 0.0
-    val sign = if (deg < 0) -1 else if (deg == 0.0 && (input.trim().startsWith('-'))) -1 else 1
-    val absDeg = abs(deg)
-    if (min < 0 || sec < 0) return null
-    return sign * (absDeg + (min / 60.0) + (sec / 3600.0))
-}
-
-private fun toDms(decimal: Double): String {
-    val sign = if (decimal < 0) -1 else 1
-    var absVal = abs(decimal)
-    val d = floor(absVal)
-    absVal = (absVal - d) * 60.0
-    val m = floor(absVal)
-    val s = (absVal - m) * 60.0
-    val prefix = if (sign < 0) "-" else ""
-    return String.format(Locale.US, "%s%.0f°%.0f'%.5f\"", prefix, d, m, s)
-}

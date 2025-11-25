@@ -122,7 +122,7 @@ fun PhotogrammetryScreen(onBackPressed: () -> Unit, vm: PhotogrammetryViewModel 
                                 readOnly = true,
                                 label = { Text("Kamera") },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = cameraExpanded) },
-                                modifier = Modifier.menuAnchor()
+                                modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                             )
                             ExposedDropdownMenu(expanded = cameraExpanded, onDismissRequest = { cameraExpanded = false }) {
                                 cameraOptions.forEach { mp ->

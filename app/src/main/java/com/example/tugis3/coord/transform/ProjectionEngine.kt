@@ -241,6 +241,27 @@ object ProjectionEngine {
         val ty = project.locTy
         return if (scale != null && rot != null && tx != null && ty != null) LocalizedTransformer(base, scale, rot, tx, ty) else base
     }
+
+    // Yeni: Parametrelerle TM dönüştürücü oluşturmak için fabrika fonksiyonu (public)
+    fun createTransverseMercator(
+        semiMajor: Double,
+        invFlattening: Double,
+        centralMeridianDeg: Double,
+        latOriginDeg: Double = 0.0,
+        scaleFactor: Double = 1.0,
+        falseE: Double = 0.0,
+        falseN: Double = 0.0
+    ): CoordinateTransformer {
+        return GenericTmTransformer(
+            semiMajor = semiMajor,
+            invF = invFlattening,
+            centralMeridianDeg = centralMeridianDeg,
+            latOriginDeg = latOriginDeg,
+            scaleFactor = scaleFactor,
+            falseE = falseE,
+            falseN = falseN
+        )
+    }
 }
 
 /** Similarity (scale+rotation+translation) uygulayan sarmalayıcı */

@@ -86,6 +86,38 @@ class PointSurveyViewModel @Inject constructor(
         }
     }
 
+    fun saveBasePoint(
+        name: String,
+        latitude: Double?,
+        longitude: Double?,
+        elevation: Double?,
+        northing: Double?,
+        easting: Double?,
+        zone: String?,
+        antennaHeight: Double?
+    ) {
+        val project = activeProject.value ?: return
+        viewModelScope.launch {
+            surveyPointRepo.saveBasePoint(
+                name = name,
+                code = null,
+                latitude = latitude,
+                longitude = longitude,
+                elevation = elevation,
+                northing = northing,
+                easting = easting,
+                zone = zone,
+                hrms = null,
+                vrms = null,
+                pdop = null,
+                satellites = null,
+                fixType = null,
+                antennaHeight = antennaHeight,
+                projectId = project.id
+            )
+        }
+    }
+
     fun exportRecentPointsToCsv(): String {
         val points = recentPoints.value
         if (points.isEmpty()) return "" // boş

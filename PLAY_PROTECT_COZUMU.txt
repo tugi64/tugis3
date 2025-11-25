@@ -1,0 +1,54 @@
+╔═══════════════════════════════════════════════════════════╗
+║  🚨 PLAY PROTECT TARAMASI TAKILDI - HIZLI ÇÖZÜM 🚨       ║
+╚═══════════════════════════════════════════════════════════╝
+
+📱 SORUN:
+   APK yüklenirken "Play Protect taraması yapılıyor..."
+   mesajında takılı kalıyor.
+
+✅ EN HIZLI ÇÖZÜM (2 Dakika):
+
+┌─────────────────────────────────────────────────────────┐
+│ YÖNTEM 1: UÇAK MODU (EN BASIT) ⭐                       │
+└─────────────────────────────────────────────────────────┘
+   1. Telefonun Uçak Modunu AÇ ✈️
+   2. APK'yi yükle
+   3. Uçak Modunu KAPAT
+
+┌─────────────────────────────────────────────────────────┐
+│ YÖNTEM 2: PLAY PROTECT KAPAT (KALICI) ⭐                │
+└─────────────────────────────────────────────────────────┘
+   1. Play Store aç
+   2. Profil simgesi (sağ üst)
+   3. Play Protect → ⚙️ Ayarlar
+   4. "Uygulamaları tara" → KAPAT ❌
+   5. APK'yi yükle
+
+┌─────────────────────────────────────────────────────────┐
+│ YÖNTEM 3: FARKLI DOSYA YÖNETİCİSİ                      │
+└─────────────────────────────────────────────────────────┘
+   1. APK'yi "Files by Google" ile aç
+   2. Play Store değil, Dosya Yöneticisi kullan
+   3. Direkt APK'ye tıkla ve yükle
+
+═══════════════════════════════════════════════════════════
+
+🎯 HANGİSİNİ SEÇMELİYİM?
+
+   ⚡ En hızlı    → Uçak Modu (30 saniye)
+   🔒 En güvenli  → Play Protect Kapat (sonra tekrar aç)
+   🛠️ Alternatif  → Farklı dosya yöneticisi
+
+═══════════════════════════════════════════════════════════
+
+⚠️  NOT:
+   Play Protect debug APK'leri "zararlı" görebilir.
+   Bu NORMAL'dir! Sizin geliştirdiğiniz uygulama güvenlidir.
+
+═══════════════════════════════════════════════════════════
+
+✅ YÜKLEME BAŞARILI OLUNCA:
+   Play Protect'i tekrar açmayı unutmayın! (güvenlik için)
+
+═══════════════════════════════════════════════════════════
+

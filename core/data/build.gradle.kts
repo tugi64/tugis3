@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.example.tugis3.core.data"
-    compileSdk = 36
+    compileSdk = 35
 
     defaultConfig {
         minSdk = 24
@@ -84,5 +84,14 @@ tasks.register("runMigrationTests") {
 }
 
 ksp {
-    arg("room.schemaLocation", "${projectDir}/schemas")
+    // Room şema export kapatıldığı için şema lokasyonu gereksiz
+    // arg("room.schemaLocation", "${projectDir}/schemas")
 }
+
+// IDE uyumluluğu için testClasses task alias'ı ekle
+tasks.register("testClasses") {
+    group = "build"
+    description = "Alias for IDE compatibility - compiles test classes"
+    dependsOn("compileDebugUnitTestKotlin")
+}
+

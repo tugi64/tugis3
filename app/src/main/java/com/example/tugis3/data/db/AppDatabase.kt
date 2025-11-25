@@ -1,4 +1,4 @@
-package com.example.tugis3.data.db
+// DEPRECATED: Bu dosya artık kullanılmıyor
+// core:data modülündeki AppDatabase kullanılmalıdır
+// Bu dosya silinebilir
 
-// >>> MOVED to :core:data (same package) — remove this file once all imports are updated.
-// AppDatabase implementation now lives in core/data module.

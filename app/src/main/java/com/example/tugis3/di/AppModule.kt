@@ -5,6 +5,7 @@ import android.location.LocationManager
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.example.tugis3.gnss.GnssEngine
+import com.example.tugis3.gnss.GnssPositionRepository
 import com.example.tugis3.ntrip.NtripClient
 import com.example.tugis3.ntrip.NtripClientImpl
 import dagger.Module
@@ -37,4 +38,8 @@ object AppModule {
     @Singleton
     fun provideFusedLocationProvider(@ApplicationContext ctx: Context): FusedLocationProviderClient =
         LocationServices.getFusedLocationProviderClient(ctx)
+
+    @Provides
+    @Singleton
+    fun provideGnssPositionRepository(): GnssPositionRepository = GnssPositionRepository
 }

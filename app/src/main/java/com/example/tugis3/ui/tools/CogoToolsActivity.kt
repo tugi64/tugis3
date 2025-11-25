@@ -1,4 +1,3 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
 package com.example.tugis3.ui.tools
 
 import android.os.Bundle
@@ -10,13 +9,15 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.tugis3.cogo.GeoMath
 import com.example.tugis3.ui.theme.Tugis3Theme
 import java.util.Locale
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import com.example.tugis3.prefs.CoordPrefs
 
 @AndroidEntryPoint
 class CogoToolsActivity : ComponentActivity() {
@@ -30,6 +31,7 @@ class CogoToolsActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CogoToolsScreen(vm: CogoPrefsViewModel = hiltViewModel()) {
     val tabs = listOf("Inverse", "Doğru", "Projeksiyon", "Açı")
@@ -43,7 +45,7 @@ fun CogoToolsScreen(vm: CogoPrefsViewModel = hiltViewModel()) {
         }
     ) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
-            TabRow(selectedTabIndex = selectedTab) {
+            PrimaryTabRow(selectedTabIndex = selectedTab) {
                 tabs.forEachIndexed { idx, title ->
                     Tab(selected = idx == selectedTab, onClick = { vm.setTab(idx) }, text = { Text(title) })
                 }
@@ -61,6 +63,11 @@ fun CogoToolsScreen(vm: CogoPrefsViewModel = hiltViewModel()) {
 
 @Composable
 fun CoordinateInverseContent() {
+    val context = LocalContext.current
+    val coordOrder by CoordPrefs.orderFlow(context).collectAsState(initial = CoordPrefs.CoordOrder.X_FIRST)
+    val axisMap by CoordPrefs.axisMapFlow(context).collectAsState(initial = CoordPrefs.AxisMap.EASTING_TO_Y_NORTHING_TO_X)
+    val eLabel = if (axisMap == CoordPrefs.AxisMap.EASTING_TO_Y_NORTHING_TO_X) "Y (Doğu)" else "X (Doğu)"
+    val nLabel = if (axisMap == CoordPrefs.AxisMap.EASTING_TO_Y_NORTHING_TO_X) "X (Kuzey)" else "Y (Kuzey)"
     // State for inputs
     var nA by remember { mutableStateOf("") }
     var eA by remember { mutableStateOf("") }
@@ -118,16 +125,26 @@ fun CoordinateInverseContent() {
             Text("Nokta A", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(4.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(nA, { nA = it }, label = { Text("Northing") }, modifier = Modifier.weight(1f))
-                OutlinedTextField(eA, { eA = it }, label = { Text("Easting") }, modifier = Modifier.weight(1f))
+                if (coordOrder == CoordPrefs.CoordOrder.X_FIRST) {
+                    OutlinedTextField(eA, { eA = it }, label = { Text(eLabel) }, modifier = Modifier.weight(1f))
+                    OutlinedTextField(nA, { nA = it }, label = { Text(nLabel) }, modifier = Modifier.weight(1f))
+                } else {
+                    OutlinedTextField(nA, { nA = it }, label = { Text(nLabel) }, modifier = Modifier.weight(1f))
+                    OutlinedTextField(eA, { eA = it }, label = { Text(eLabel) }, modifier = Modifier.weight(1f))
+                }
                 OutlinedTextField(hA, { hA = it }, label = { Text("Height") }, modifier = Modifier.weight(1f))
             }
             Spacer(modifier = Modifier.height(12.dp))
             Text("Nokta B", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(4.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(nB, { nB = it }, label = { Text("Northing") }, modifier = Modifier.weight(1f))
-                OutlinedTextField(eB, { eB = it }, label = { Text("Easting") }, modifier = Modifier.weight(1f))
+                if (coordOrder == CoordPrefs.CoordOrder.X_FIRST) {
+                    OutlinedTextField(eB, { eB = it }, label = { Text(eLabel) }, modifier = Modifier.weight(1f))
+                    OutlinedTextField(nB, { nB = it }, label = { Text(nLabel) }, modifier = Modifier.weight(1f))
+                } else {
+                    OutlinedTextField(nB, { nB = it }, label = { Text(nLabel) }, modifier = Modifier.weight(1f))
+                    OutlinedTextField(eB, { eB = it }, label = { Text(eLabel) }, modifier = Modifier.weight(1f))
+                }
                 OutlinedTextField(hB, { hB = it }, label = { Text("Height") }, modifier = Modifier.weight(1f))
             }
             Spacer(modifier = Modifier.height(16.dp))
@@ -166,6 +183,11 @@ fun CoordinateInverseContent() {
 
 @Composable
 fun LineFromTwoPointsContent() {
+    val context = LocalContext.current
+    val coordOrder by CoordPrefs.orderFlow(context).collectAsState(initial = CoordPrefs.CoordOrder.X_FIRST)
+    val axisMap by CoordPrefs.axisMapFlow(context).collectAsState(initial = CoordPrefs.AxisMap.EASTING_TO_Y_NORTHING_TO_X)
+    val eAxis = if (axisMap == CoordPrefs.AxisMap.EASTING_TO_Y_NORTHING_TO_X) "Y" else "X"
+    val nAxis = if (axisMap == CoordPrefs.AxisMap.EASTING_TO_Y_NORTHING_TO_X) "X" else "Y"
     var n1 by remember { mutableStateOf("") }; var e1 by remember { mutableStateOf("") }
     var n2 by remember { mutableStateOf("") }; var e2 by remember { mutableStateOf("") }
     var distance by remember { mutableStateOf<Double?>(null) }
@@ -185,12 +207,22 @@ fun LineFromTwoPointsContent() {
         Text("İki Noktadan Doğru", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Text("İki nokta arasındaki doğrultu azimut, mesafe ve orta nokta hesaplanır.", style = MaterialTheme.typography.bodySmall)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(n1,{n1=it}, label={Text("N1")}, modifier=Modifier.weight(1f))
-            OutlinedTextField(e1,{e1=it}, label={Text("E1")}, modifier=Modifier.weight(1f))
+            if (coordOrder == CoordPrefs.CoordOrder.X_FIRST) {
+                OutlinedTextField(e1,{e1=it}, label={Text("${eAxis}1")}, modifier=Modifier.weight(1f))
+                OutlinedTextField(n1,{n1=it}, label={Text("${nAxis}1")}, modifier=Modifier.weight(1f))
+            } else {
+                OutlinedTextField(n1,{n1=it}, label={Text("${nAxis}1")}, modifier=Modifier.weight(1f))
+                OutlinedTextField(e1,{e1=it}, label={Text("${eAxis}1")}, modifier=Modifier.weight(1f))
+            }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(n2,{n2=it}, label={Text("N2")}, modifier=Modifier.weight(1f))
-            OutlinedTextField(e2,{e2=it}, label={Text("E2")}, modifier=Modifier.weight(1f))
+            if (coordOrder == CoordPrefs.CoordOrder.X_FIRST) {
+                OutlinedTextField(e2,{e2=it}, label={Text("${eAxis}2")}, modifier=Modifier.weight(1f))
+                OutlinedTextField(n2,{n2=it}, label={Text("${nAxis}2")}, modifier=Modifier.weight(1f))
+            } else {
+                OutlinedTextField(n2,{n2=it}, label={Text("${nAxis}2")}, modifier=Modifier.weight(1f))
+                OutlinedTextField(e2,{e2=it}, label={Text("${eAxis}2")}, modifier=Modifier.weight(1f))
+            }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick={calc()}, modifier=Modifier.weight(1f)) { Icon(Icons.Default.Calculate,null); Spacer(Modifier.width(4.dp)); Text("Hesapla") }
@@ -202,7 +234,7 @@ fun LineFromTwoPointsContent() {
                 Text("Sonuçlar", fontWeight = FontWeight.Bold)
                 Text("Mesafe: ${distance?.let { String.format(Locale.US,"%.4f m",it) } ?: "-"}")
                 Text("Azimut: ${azimuth?.let { GeoMath.dmsFormat(it) } ?: "-"}")
-                Text("Orta N: ${midN?.let { String.format(Locale.US,"%.4f",it) } ?: "-"}  E: ${midE?.let { String.format(Locale.US,"%.4f",it) } ?: "-"}")
+                Text("Orta ${eAxis}: ${midE?.let { String.format(Locale.US,"%.4f",it) } ?: "-"}  ${nAxis}: ${midN?.let { String.format(Locale.US,"%.4f",it) } ?: "-"}")
             }
         }
     }}
@@ -210,6 +242,11 @@ fun LineFromTwoPointsContent() {
 
 @Composable
 fun PointProjectionContent() {
+    val context = LocalContext.current
+    val coordOrder by CoordPrefs.orderFlow(context).collectAsState(initial = CoordPrefs.CoordOrder.X_FIRST)
+    val axisMap by CoordPrefs.axisMapFlow(context).collectAsState(initial = CoordPrefs.AxisMap.EASTING_TO_Y_NORTHING_TO_X)
+    val eAxis = if (axisMap == CoordPrefs.AxisMap.EASTING_TO_Y_NORTHING_TO_X) "Y" else "X"
+    val nAxis = if (axisMap == CoordPrefs.AxisMap.EASTING_TO_Y_NORTHING_TO_X) "X" else "Y"
     var n by remember { mutableStateOf("") }; var e by remember { mutableStateOf("") }
     var dist by remember { mutableStateOf("") }; var az by remember { mutableStateOf("") }
     var outN by remember { mutableStateOf<Double?>(null) }; var outE by remember { mutableStateOf<Double?>(null) }
@@ -226,8 +263,13 @@ fun PointProjectionContent() {
         Text("Nokta Projeksiyonu", style=MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Text("Başlangıç noktası, mesafe ve azimut ile hedef koordinat hesaplanır.", style=MaterialTheme.typography.bodySmall)
         Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(n,{n=it}, label={Text("N")}, modifier=Modifier.weight(1f))
-            OutlinedTextField(e,{e=it}, label={Text("E")}, modifier=Modifier.weight(1f))
+            if (coordOrder == CoordPrefs.CoordOrder.X_FIRST) {
+                OutlinedTextField(e,{e=it}, label={Text(eAxis)}, modifier=Modifier.weight(1f))
+                OutlinedTextField(n,{n=it}, label={Text(nAxis)}, modifier=Modifier.weight(1f))
+            } else {
+                OutlinedTextField(n,{n=it}, label={Text(nAxis)}, modifier=Modifier.weight(1f))
+                OutlinedTextField(e,{e=it}, label={Text(eAxis)}, modifier=Modifier.weight(1f))
+            }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(dist,{dist=it}, label={Text("Mesafe")}, modifier=Modifier.weight(1f))
@@ -241,8 +283,8 @@ fun PointProjectionContent() {
         Card(colors=CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Sonuçlar", fontWeight = FontWeight.Bold)
-                Text("Hedef N: ${outN?.let { String.format(Locale.US,"%.4f",it) } ?: "-"}")
-                Text("Hedef E: ${outE?.let { String.format(Locale.US,"%.4f",it) } ?: "-"}")
+                Text("Hedef ${nAxis}: ${outN?.let { String.format(Locale.US,"%.4f",it) } ?: "-"}")
+                Text("Hedef ${eAxis}: ${outE?.let { String.format(Locale.US,"%.4f",it) } ?: "-"}")
             }
         }
     }}
@@ -250,6 +292,11 @@ fun PointProjectionContent() {
 
 @Composable
 fun AngleSolverContent() {
+    val context = LocalContext.current
+    val coordOrder by CoordPrefs.orderFlow(context).collectAsState(initial = CoordPrefs.CoordOrder.X_FIRST)
+    val axisMap by CoordPrefs.axisMapFlow(context).collectAsState(initial = CoordPrefs.AxisMap.EASTING_TO_Y_NORTHING_TO_X)
+    val eAxis = if (axisMap == CoordPrefs.AxisMap.EASTING_TO_Y_NORTHING_TO_X) "Y" else "X"
+    val nAxis = if (axisMap == CoordPrefs.AxisMap.EASTING_TO_Y_NORTHING_TO_X) "X" else "Y"
     var nA by remember { mutableStateOf("") }; var eA by remember { mutableStateOf("") }
     var nB by remember { mutableStateOf("") }; var eB by remember { mutableStateOf("") }
     var nC by remember { mutableStateOf("") }; var eC by remember { mutableStateOf("") }
@@ -260,30 +307,41 @@ fun AngleSolverContent() {
     fun calc() {
         err=null
         val NA=parse(nA); val EA=parse(eA); val NB=parse(nB); val EB=parse(eB); val NC=parse(nC); val EC=parse(eC)
-        if (NA==null||EA==null||NB==null||EB==null||NC==null||EC==null){ err="Geçersiz giriş"; return }
-        azAB = GeoMath.azimuthDeg(NB,EB,NA,EA)
+        if (NA==null||EA==null||NB==null||EB==null||NC==null||EC==null) { err="Geçersiz giriş"; return }
+        azAB = GeoMath.azimuthDeg(NA,EA,NB,EB)
         azBC = GeoMath.azimuthDeg(NB,EB,NC,EC)
         angle = GeoMath.angleAt(NA,EA,NB,EB,NC,EC)
     }
-    Card(Modifier.fillMaxWidth().padding(12.dp)) { Column(Modifier.padding(16.dp), verticalArrangement=Arrangement.spacedBy(12.dp)) {
+    Card(Modifier.fillMaxWidth().padding(12.dp)) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Açı Çözümü", style=MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        Text("A-B-C üçlüsünde B tepe açısı ve yön azimutları.", style=MaterialTheme.typography.bodySmall)
-        Text("Nokta A")
-        Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(nA,{nA=it}, label={Text("NA")}, modifier=Modifier.weight(1f))
-            OutlinedTextField(eA,{eA=it}, label={Text("EA")}, modifier=Modifier.weight(1f))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (coordOrder == CoordPrefs.CoordOrder.X_FIRST) {
+                OutlinedTextField(eA,{eA=it}, label={ Text("${eAxis}A") }, modifier=Modifier.weight(1f))
+                OutlinedTextField(nA,{nA=it}, label={ Text("${nAxis}A") }, modifier=Modifier.weight(1f))
+            } else {
+                OutlinedTextField(nA,{nA=it}, label={ Text("${nAxis}A") }, modifier=Modifier.weight(1f))
+                OutlinedTextField(eA,{eA=it}, label={ Text("${eAxis}A") }, modifier=Modifier.weight(1f))
+            }
         }
-        Text("Nokta B")
-        Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(nB,{nB=it}, label={Text("NB")}, modifier=Modifier.weight(1f))
-            OutlinedTextField(eB,{eB=it}, label={Text("EB")}, modifier=Modifier.weight(1f))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (coordOrder == CoordPrefs.CoordOrder.X_FIRST) {
+                OutlinedTextField(eB,{eB=it}, label={ Text("${eAxis}B") }, modifier=Modifier.weight(1f))
+                OutlinedTextField(nB,{nB=it}, label={ Text("${nAxis}B") }, modifier=Modifier.weight(1f))
+            } else {
+                OutlinedTextField(nB,{nB=it}, label={ Text("${nAxis}B") }, modifier=Modifier.weight(1f))
+                OutlinedTextField(eB,{eB=it}, label={ Text("${eAxis}B") }, modifier=Modifier.weight(1f))
+            }
         }
-        Text("Nokta C")
-        Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(nC,{nC=it}, label={Text("NC")}, modifier=Modifier.weight(1f))
-            OutlinedTextField(eC,{eC=it}, label={Text("EC")}, modifier=Modifier.weight(1f))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (coordOrder == CoordPrefs.CoordOrder.X_FIRST) {
+                OutlinedTextField(eC,{eC=it}, label={ Text("${eAxis}C") }, modifier=Modifier.weight(1f))
+                OutlinedTextField(nC,{nC=it}, label={ Text("${nAxis}C") }, modifier=Modifier.weight(1f))
+            } else {
+                OutlinedTextField(nC,{nC=it}, label={ Text("${nAxis}C") }, modifier=Modifier.weight(1f))
+                OutlinedTextField(eC,{eC=it}, label={ Text("${eAxis}C") }, modifier=Modifier.weight(1f))
+            }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick={calc()}, modifier=Modifier.weight(1f)) { Icon(Icons.Default.Calculate,null); Spacer(Modifier.width(4.dp)); Text("Hesapla") }
             OutlinedButton(onClick={ nA="";eA="";nB="";eB="";nC="";eC="";angle=null;azAB=null;azBC=null;err=null }, modifier=Modifier.weight(1f)) { Icon(Icons.Default.Refresh,null); Spacer(Modifier.width(4.dp)); Text("Temizle") }
         }
@@ -291,9 +349,9 @@ fun AngleSolverContent() {
         Card(colors=CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Sonuçlar", fontWeight = FontWeight.Bold)
-                Text("Azimut AB: ${azAB?.let { GeoMath.dmsFormat(it) } ?: "-"}")
-                Text("Azimut BC: ${azBC?.let { GeoMath.dmsFormat(it) } ?: "-"}")
-                Text("B Açısı: ${angle?.let { String.format(Locale.US, "%.4f°", it) } ?: "-"}")
+                Text("AB Az: ${azAB?.let { GeoMath.dmsFormat(it) } ?: "-"}")
+                Text("BC Az: ${azBC?.let { GeoMath.dmsFormat(it) } ?: "-"}")
+                Text("Açı: ${angle?.let { String.format(Locale.US, "%.6f°", it) } ?: "-"}")
             }
         }
     }}

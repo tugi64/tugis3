@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- Harita gösterimi için opsiyonel switch -->
+    <Switch
+        android:id="@+id/switchMap"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Harita Gösterimi" />
+
+    <!-- Harita alanı (opsiyonel) -->
+    <FrameLayout
+        android:id="@+id/mapContainer"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:visibility="gone"
+        android:background="#EEE" />
+
+    <!-- Nokta alımı butonu -->
+    <Button
+        android:id="@+id/btnTakePoint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Nokta Al" />
+
+    <!-- Alt kısımda değerler -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingTop="16dp">
+        <TextView android:id="@+id/txtNorthing" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="N: -" />
+        <TextView android:id="@+id/txtEasting" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="E: -" />
+        <TextView android:id="@+id/txtHeight" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Z: -" />
+        <TextView android:id="@+id/txtRefDistance" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Referans Uzaklık: -" />
+        <TextView android:id="@+id/txtAntennaHeight" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Anten Yüksekliği: -" />
+    </LinearLayout>
+</LinearLayout>
+

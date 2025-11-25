@@ -1,12 +1,7 @@
-package com.example.tugis3.database
+// DEPRECATED: This file is no longer in use
+// Use database classes from core:data module instead
 
-import androidx.room.Database
-import androidx.room.RoomDatabase
-import com.example.tugis3.data.model.CorsStation
-import com.example.tugis3.database.dao.CorsDao
+@file:Suppress("unused")
+package com.example.tugis3.database_deprecated
 
-@Database(entities = [CorsStation::class], version = 1, exportSchema = false)
-abstract class CorsDatabase : RoomDatabase() {
-    abstract fun corsDao(): CorsDao
-}
-
+// This file was moved to a different package to avoid conflicts

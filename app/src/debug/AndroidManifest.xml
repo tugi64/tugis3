@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- Debug build'te ikinci launcher simgesi: mevcut CrashLogActivity'ye alias -->
+        <activity-alias
+            android:name="com.example.tugis3.util.crash.CrashLogActivityDebug"
+            android:exported="true"
+            android:targetActivity="com.example.tugis3.util.crash.CrashLogActivity"
+            android:label="Crash Log (Debug)">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+    </application>
+</manifest>

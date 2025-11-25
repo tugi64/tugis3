@@ -353,6 +353,121 @@ object AppDatabaseMigrations {
             db.execSQL("CREATE INDEX IF NOT EXISTS index_measurement_logs_createdAt ON measurement_logs(createdAt)")
         }
     }
+    // v27 -> v28 : measurement_logs tablo index normalizasyonu (önce indeksleri olmayan cihazlar için)
+    val MIGRATION_27_28 = object : Migration(27, 28) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_measurement_logs_createdAt ON measurement_logs(createdAt)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_measurement_logs_projectId ON measurement_logs(projectId)")
+        }
+    }
+
+    // v28 -> v29 : measurement_logs tabloyu indeksleri kaldırarak yeniden oluştur (Expected indices=[] hatasını düzeltmek için)
+    val MIGRATION_28_29 = object : Migration(28, 29) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Eğer tablo yoksa (taze kurulum) sadece oluştur.
+            val colsCursor = db.query("PRAGMA table_info(measurement_logs)")
+            val tableExists = colsCursor.use { it.count > 0 }
+            if (!tableExists) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS measurement_logs (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        projectId INTEGER,
+                        mode TEXT,
+                        eventType TEXT NOT NULL,
+                        message TEXT,
+                        createdAt INTEGER NOT NULL,
+                        extra TEXT
+                    )""".trimIndent()
+                )
+                return
+            }
+            // Geçici tablo oluştur
+            db.execSQL(
+                """CREATE TABLE IF NOT EXISTS measurement_logs_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    projectId INTEGER,
+                    mode TEXT,
+                    eventType TEXT NOT NULL,
+                    message TEXT,
+                    createdAt INTEGER NOT NULL,
+                    extra TEXT
+                )""".trimIndent()
+            )
+            // Verileri kopyala (kolon adları birebir)
+            runCatching {
+                db.execSQL("INSERT INTO measurement_logs_new (id,projectId,mode,eventType,message,createdAt,extra) SELECT id,projectId,mode,eventType,message,createdAt,extra FROM measurement_logs")
+            }
+            // Eski tabloyu bırak ve yenisini yeniden adlandır
+            db.execSQL("DROP TABLE measurement_logs")
+            db.execSQL("ALTER TABLE measurement_logs_new RENAME TO measurement_logs")
+            // Eski index kalıntılarını (varsa) temizle (DROP INDEX IF EXISTS güvenli)
+            runCatching { db.execSQL("DROP INDEX IF EXISTS index_measurement_logs_createdAt") }
+            runCatching { db.execSQL("DROP INDEX IF EXISTS index_measurement_logs_projectId") }
+        }
+    }
+    // 29 -> 30 : measurement_logs entity'den indeksler kaldırıldı; tablo zaten indeksiz olmalı.
+    // Eski bazı cihazlarda indeksler kalmışsa güvenli şekilde düşür.
+    val MIGRATION_29_30 = object : Migration(29, 30) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            runCatching { db.execSQL("DROP INDEX IF EXISTS index_measurement_logs_createdAt") }
+            runCatching { db.execSQL("DROP INDEX IF EXISTS index_measurement_logs_projectId") }
+            // Tabloyu yeniden yaratmaya gerek yok; kolon yapısı değişmedi.
+        }
+    }
+    // 30 -> 31 : gis_features yeni kolonlar (layer, geometryJson)
+    val MIGRATION_30_31 = object : Migration(30, 31) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Kolonlar nullable olduğu için direkt eklemek güvenli (varsa hata yutuluyor)
+            runCatching { db.execSQL("ALTER TABLE gis_features ADD COLUMN layer TEXT") }
+            runCatching { db.execSQL("ALTER TABLE gis_features ADD COLUMN geometryJson TEXT") }
+        }
+    }
+
+    // 31 -> 32 : gis_features schema uyuşmazlığını düzeltmek için güvenli onarım
+    val MIGRATION_31_32 = object : Migration(31, 32) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Kolonlar bazı cihazlarda zaten eklenmiş olabilir; güvenli ekle
+            runCatching { db.execSQL("ALTER TABLE gis_features ADD COLUMN geometryJson TEXT") }
+            runCatching { db.execSQL("ALTER TABLE gis_features ADD COLUMN layer TEXT") }
+            // Beklenen composite index'i garanti altına al
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_gis_features_projectId_id ON gis_features(projectId,id)")
+        }
+    }
+
+    // 32 -> 33 : line_definitions tablosu eklendi
+    val MIGRATION_32_33 = object : Migration(32, 33) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """CREATE TABLE IF NOT EXISTS line_definitions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    projectId INTEGER NOT NULL,
+                    name TEXT NOT NULL,
+                    startPointId INTEGER NOT NULL,
+                    endPointId INTEGER NOT NULL,
+                    startKm REAL NOT NULL DEFAULT 0.0,
+                    length REAL NOT NULL DEFAULT 0.0,
+                    azimuth REAL NOT NULL DEFAULT 0.0,
+                    useInterval INTEGER NOT NULL DEFAULT 0,
+                    intervalMeters REAL NOT NULL DEFAULT 5.0,
+                    slopePercent REAL NOT NULL DEFAULT 0.0,
+                    autoNearestPoint INTEGER NOT NULL DEFAULT 0,
+                    calculationMode TEXT NOT NULL DEFAULT 'FIXED_DISTANCE',
+                    createdAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL,
+                    FOREIGN KEY(projectId) REFERENCES projects(id) ON DELETE CASCADE
+                )""".trimIndent()
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_line_definitions_projectId ON line_definitions(projectId)")
+        }
+    }
+
+    // v33 -> v34: cad_layers tablosuna locked ve isWorkLayer alanları eklendi
+    val MIGRATION_33_34 = object : Migration(33, 34) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE cad_layers ADD COLUMN locked INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE cad_layers ADD COLUMN isWorkLayer INTEGER NOT NULL DEFAULT 0")
+        }
+    }
 
     val ALL = arrayOf(
         MIGRATION_5_6,
@@ -376,6 +491,13 @@ object AppDatabaseMigrations {
         MIGRATION_23_24,
         MIGRATION_24_25,
         MIGRATION_25_26,
-        MIGRATION_26_27 // yeni eklendi
+        MIGRATION_26_27,
+        MIGRATION_27_28,
+        MIGRATION_28_29,
+        MIGRATION_29_30,
+        MIGRATION_30_31,
+        MIGRATION_31_32,
+        MIGRATION_32_33,
+        MIGRATION_33_34 // yeni - Layer Settings için locked ve isWorkLayer alanları
     )
 }

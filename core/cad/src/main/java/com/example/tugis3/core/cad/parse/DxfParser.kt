@@ -15,25 +15,63 @@ class DxfParser {
         val lines = br.readLines()
         val out = mutableListOf<CadEntity>()
         var i = 0
+        var unsupportedCount = 0
+        val unsupportedTypes = mutableSetOf<String>()
+
         fun nextPair(): Pair<String, String>? {
             if (i + 1 >= lines.size) return null
             val code = lines[i].trim(); val value = lines[i + 1].trim(); i += 2
             return code to value
         }
+
+        android.util.Log.d("DXF", "Parse başladı: ${lines.size} satır")
+
         while (true) {
             val p = nextPair() ?: break
             if (p.first == "0") {
-                when (p.second.uppercase()) {
-                    "ENDSEC", "EOF" -> break
-                    "LINE" -> parseLine(::nextPair)?.let(out::add)
-                    "LWPOLYLINE" -> parseLwPolyline(::nextPair)?.let(out::add)
-                    "CIRCLE" -> parseCircle(::nextPair)?.let(out::add)
-                    "ARC" -> parseArc(::nextPair)?.let(out::add)
-                    "TEXT" -> parseText(::nextPair)?.let(out::add)
-                    else -> { /* desteklenmeyen entity atlanır */ }
+                val entityType = p.second.uppercase()
+                when (entityType) {
+                    "ENDSEC", "EOF" -> {
+                        android.util.Log.d("DXF", "Section sonu: $entityType")
+                        break
+                    }
+                    "LINE" -> parseLine(::nextPair)?.let {
+                        out.add(it)
+                        if (out.size % 100 == 0) android.util.Log.d("DXF", "İşlenen entity: ${out.size}")
+                    }
+                    "LWPOLYLINE", "POLYLINE" -> parseLwPolyline(::nextPair)?.let {
+                        out.add(it)
+                        if (out.size % 100 == 0) android.util.Log.d("DXF", "İşlenen entity: ${out.size}")
+                    }
+                    "CIRCLE" -> parseCircle(::nextPair)?.let {
+                        out.add(it)
+                        if (out.size % 100 == 0) android.util.Log.d("DXF", "İşlenen entity: ${out.size}")
+                    }
+                    "ARC" -> parseArc(::nextPair)?.let {
+                        out.add(it)
+                        if (out.size % 100 == 0) android.util.Log.d("DXF", "İşlenen entity: ${out.size}")
+                    }
+                    "TEXT", "MTEXT" -> parseText(::nextPair)?.let {
+                        out.add(it)
+                        if (out.size % 100 == 0) android.util.Log.d("DXF", "İşlenen entity: ${out.size}")
+                    }
+                    "SECTION", "HEADER", "CLASSES", "TABLES", "BLOCKS", "ENTITIES", "OBJECTS" -> {
+                        // Section başlıkları - devam et
+                    }
+                    else -> {
+                        // Desteklenmeyen entity
+                        unsupportedCount++
+                        unsupportedTypes.add(entityType)
+                    }
                 }
             }
         }
+
+        android.util.Log.i("DXF", "Parse tamamlandı: ${out.size} entity yüklendi")
+        if (unsupportedCount > 0) {
+            android.util.Log.w("DXF", "Desteklenmeyen ${unsupportedCount} entity atlandı: ${unsupportedTypes.joinToString()}")
+        }
+
         out
     }
 

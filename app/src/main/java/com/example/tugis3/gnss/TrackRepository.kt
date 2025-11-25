@@ -58,6 +58,15 @@ object TrackRepository {
 
     fun consumeExportSuggestion() { _exportSuggestion.value = false }
 
+    // Eksik metodları ekliyoruz
+    fun startRecording() {
+        setRecording(true)
+    }
+
+    fun stopRecording() {
+        setRecording(false)
+    }
+
     fun setRecording(enabled: Boolean) {
         val prev = _recording.value
         _recording.value = enabled

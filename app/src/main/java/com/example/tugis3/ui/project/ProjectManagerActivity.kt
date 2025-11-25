@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
-
 package com.example.tugis3.ui.project
 
 import android.os.Bundle
@@ -9,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -16,95 +15,164 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import dagger.hilt.android.AndroidEntryPoint
 import com.example.tugis3.ui.theme.Tugis3Theme
+import dagger.hilt.android.AndroidEntryPoint
+import java.text.SimpleDateFormat
+import java.util.*
 
 @AndroidEntryPoint
 class ProjectManagerActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { Tugis3Theme { ProjectManagerScreen() } }
+        setContent {
+            Tugis3Theme {
+                ProjectManagerScreen(
+                    onBack = { finish() }
+                )
+            }
+        }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProjectManagerScreen(vm: ProjectManagerViewModel = hiltViewModel()) {
-    val projects by vm.projects.collectAsState()
-    val active by vm.activeProject.collectAsState()
-    var searchQuery by remember { mutableStateOf("") }
-    var showCreateDialog by remember { mutableStateOf(false) }
-    var showDeleteConfirm by remember { mutableStateOf<Long?>(null) }
+private fun ProjectManagerScreen(onBack: () -> Unit) {
+    var showNewProjectDialog by remember { mutableStateOf(false) }
+    var projects by remember { mutableStateOf(listOf<Project>()) }
+    var selectedProject by remember { mutableStateOf<Project?>(null) }
 
-    if (showCreateDialog) {
-        CreateProjectDialog(
-            onDismiss = { showCreateDialog = false },
-            onCreate = { name, desc, activate ->
-                vm.create(name.trim(), desc.trim().ifBlank { null }, activate)
-                showCreateDialog = false
-            }
-        )
-    }
-
-    showDeleteConfirm?.let { id ->
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirm = null },
-            title = { Text("Projeyi Sil") },
-            text = { Text("Bu proje ve noktaları silinecek. Emin misiniz?") },
-            confirmButton = {
-                TextButton(onClick = { vm.delete(id); showDeleteConfirm = null }) { Text("Sil") }
-            },
-            dismissButton = { TextButton(onClick = { showDeleteConfirm = null }) { Text("İptal") } }
+    // Örnek proje verileri
+    LaunchedEffect(Unit) {
+        projects = listOf(
+            Project("Proje_2024_01", "Ana Yol Projesi", Date(), "TM33"),
+            Project("Kadastro_2024", "Kadastro Çalışması", Date(), "TM30"),
+            Project("Tünel_Projesi", "Metro Tüneli", Date(), "TM36")
         )
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Projeler") },
+                title = { Text("Proje Yöneticisi") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Geri")
+                    }
+                },
                 actions = {
-                    IconButton(onClick = { showCreateDialog = true }) { Icon(Icons.Default.Add, null) }
+                    IconButton(onClick = { showNewProjectDialog = true }) {
+                        Icon(Icons.Default.Add, contentDescription = "Yeni Proje")
+                    }
                 }
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { showNewProjectDialog = true }
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Yeni Proje")
+            }
         }
-    ) { inner ->
-        Column(
-            Modifier
+    ) { paddingValues ->
+        LazyColumn(
+            modifier = Modifier
                 .fillMaxSize()
-                .padding(inner)
+                .padding(paddingValues)
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Ellipsoid bilgi satırı (aktif proje varsa)
-            active?.let { ap ->
-                if (!ap.ellipsoidName.isNullOrBlank()) {
-                    AssistChip(
-                        onClick = {},
-                        label = { Text("Elipsoid: ${ap.ellipsoidName}") },
-                        leadingIcon = { Icon(Icons.Default.Public, contentDescription = null) }
+            items(projects) { project ->
+                ProjectCard(
+                    project = project,
+                    isSelected = selectedProject == project,
+                    onSelect = { selectedProject = project },
+                    onOpen = {
+                        // Projeyi aç
+                    },
+                    onDelete = {
+                        projects = projects.filter { it != project }
+                    }
+                )
+            }
+        }
+    }
+
+    if (showNewProjectDialog) {
+        NewProjectDialog(
+            onDismiss = { showNewProjectDialog = false },
+            onCreate = { name, description, coordSystem ->
+                val newProject = Project(
+                    name = name,
+                    description = description,
+                    createdDate = Date(),
+                    coordinateSystem = coordSystem
+                )
+                projects = projects + newProject
+                showNewProjectDialog = false
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ProjectCard(
+    project: Project,
+    isSelected: Boolean,
+    onSelect: () -> Unit,
+    onOpen: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                           else MaterialTheme.colorScheme.surface
+        ),
+        onClick = onSelect
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = project.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = project.description,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "Koordinat: ${project.coordinateSystem}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
+                            .format(project.createdDate),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-            }
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                label = { Text("Ara") },
-                leadingIcon = { Icon(Icons.Default.Search, null) },
-                modifier = Modifier.fillMaxWidth()
-            )
-            val filtered = projects.filter { it.name.contains(searchQuery, true) }
-            if (filtered.isEmpty()) {
-                Text("Proje yok", style = MaterialTheme.typography.bodyMedium)
-            } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(filtered, key = { it.id }) { p ->
-                        ProjectRow(
-                            name = p.name,
-                            isActive = p.id == active?.id,
-                            description = p.description,
-                            ellipsoidName = p.ellipsoidName,
-                            onActivate = { vm.setActive(p.id) },
-                            onDelete = { showDeleteConfirm = p.id }
+
+                Row {
+                    IconButton(onClick = onOpen) {
+                        Icon(Icons.Default.OpenInBrowser, contentDescription = "Aç")
+                    }
+                    IconButton(onClick = onDelete) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "Sil",
+                            tint = MaterialTheme.colorScheme.error
                         )
                     }
                 }
@@ -113,68 +181,100 @@ fun ProjectManagerScreen(vm: ProjectManagerViewModel = hiltViewModel()) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ProjectRow(
-    name: String,
-    isActive: Boolean,
-    description: String?,
-    ellipsoidName: String?,
-    onActivate: () -> Unit,
-    onDelete: () -> Unit
-) {
-    ElevatedCard(onClick = onActivate) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = if (isActive) Icons.Default.Star else Icons.Default.Folder,
-                contentDescription = null
-            )
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(name, fontWeight = FontWeight.Bold)
-                if (!description.isNullOrBlank()) Text(description, style = MaterialTheme.typography.bodySmall)
-                if (!ellipsoidName.isNullOrBlank()) {
-                    Text(
-                        "Ellipsoid: $ellipsoidName",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.secondary
-                    )
-                }
-                if (isActive) Text("Aktif", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
-            }
-            IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, contentDescription = null) }
-        }
-    }
-}
-
-@Composable
-private fun CreateProjectDialog(
+private fun NewProjectDialog(
     onDismiss: () -> Unit,
-    onCreate: (name: String, desc: String, activate: Boolean) -> Unit
+    onCreate: (String, String, String) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
-    var desc by remember { mutableStateOf("") }
-    var activate by remember { mutableStateOf(true) }
+    var description by remember { mutableStateOf("") }
+    var coordinateSystem by remember { mutableStateOf("WGS84/TM33") }
+    var expanded by remember { mutableStateOf(false) }
+
+    val coordinateSystems = listOf(
+        "WGS84/TM27", "WGS84/TM30", "WGS84/TM33", "WGS84/TM36",
+        "WGS84/TM39", "WGS84/TM42", "WGS84/TM45",
+        "ED50/UTM zone 35", "ED50/UTM zone 36", "ED50/UTM zone 37"
+    )
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Yeni Proje") },
+        title = { Text("Yeni Proje Oluştur") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(name, { name = it }, label = { Text("Ad") })
-                OutlinedTextField(desc, { desc = it }, label = { Text("Açıklama (ops)") })
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = activate, onCheckedChange = { activate = it })
-                    Text("Aktif yap")
+            Column(
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Proje Adı") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Açıklama") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = coordinateSystem,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Koordinat Sistemi") },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        coordinateSystems.forEach { system ->
+                            DropdownMenuItem(
+                                text = { Text(system) },
+                                onClick = {
+                                    coordinateSystem = system
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onCreate(name, desc, activate) }, enabled = name.isNotBlank()) { Text("Kaydet") }
+            TextButton(
+                onClick = {
+                    if (name.isNotBlank()) {
+                        onCreate(name, description, coordinateSystem)
+                    }
+                }
+            ) {
+                Text("Oluştur")
+            }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("İptal") } }
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("İptal")
+            }
+        }
     )
 }
+
+data class Project(
+    val name: String,
+    val description: String,
+    val createdDate: Date,
+    val coordinateSystem: String
+)

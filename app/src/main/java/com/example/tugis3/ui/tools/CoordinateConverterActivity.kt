@@ -9,18 +9,22 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowBack as _Ignored // to avoid unused removal if wildcard present
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.tugis3.ui.theme.Tugis3Theme
 import dagger.hilt.android.AndroidEntryPoint
-import kotlin.math.cos
+import com.example.tugis3.coord.transform.ProjectionEngine
+import com.example.tugis3.coord.transform.UtmTransformer
+import com.example.tugis3.prefs.CoordPrefs
+
+private fun parseDouble(text: String): Double? = text.trim().replace(',', '.').toDoubleOrNull()
 
 @OptIn(ExperimentalMaterial3Api::class)
 @AndroidEntryPoint
@@ -40,6 +44,12 @@ class CoordinateConverterActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CoordinateConverterScreen(onBackPressed: () -> Unit) {
+    val context = LocalContext.current
+    val coordOrder by CoordPrefs.orderFlow(context).collectAsState(initial = CoordPrefs.CoordOrder.Y_FIRST)
+    val axisMap by CoordPrefs.axisMapFlow(context).collectAsState(initial = CoordPrefs.AxisMap.EASTING_TO_Y_NORTHING_TO_X)
+    val eLabel = if (axisMap == CoordPrefs.AxisMap.EASTING_TO_Y_NORTHING_TO_X) "Y (Doğu/Easting)" else "X (Doğu/Easting)"
+    val nLabel = if (axisMap == CoordPrefs.AxisMap.EASTING_TO_Y_NORTHING_TO_X) "X (Kuzey/Northing)" else "Y (Kuzey/Northing)"
+
     var inputLat by remember { mutableStateOf("") }
     var inputLon by remember { mutableStateOf("") }
     var inputNorthing by remember { mutableStateOf("") }
@@ -155,22 +165,41 @@ fun CoordinateConverterScreen(onBackPressed: () -> Unit) {
                             placeholder = { Text("32.123456") }
                         )
                     } else {
-                        OutlinedTextField(
-                            value = inputNorthing,
-                            onValueChange = { inputNorthing = it },
-                            label = { Text("Kuzey (Northing)") },
-                            modifier = Modifier.fillMaxWidth(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            placeholder = { Text("4330000.00") }
-                        )
-                        OutlinedTextField(
-                            value = inputEasting,
-                            onValueChange = { inputEasting = it },
-                            label = { Text("Doğu (Easting)") },
-                            modifier = Modifier.fillMaxWidth(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            placeholder = { Text("355000.00") }
-                        )
+                        if (coordOrder == CoordPrefs.CoordOrder.X_FIRST) {
+                            OutlinedTextField(
+                                value = inputEasting,
+                                onValueChange = { inputEasting = it },
+                                label = { Text(eLabel) },
+                                modifier = Modifier.fillMaxWidth(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                placeholder = { Text("355000.00") }
+                            )
+                            OutlinedTextField(
+                                value = inputNorthing,
+                                onValueChange = { inputNorthing = it },
+                                label = { Text(nLabel) },
+                                modifier = Modifier.fillMaxWidth(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                placeholder = { Text("4330000.00") }
+                            )
+                        } else {
+                            OutlinedTextField(
+                                value = inputNorthing,
+                                onValueChange = { inputNorthing = it },
+                                label = { Text(nLabel) },
+                                modifier = Modifier.fillMaxWidth(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                placeholder = { Text("4330000.00") }
+                            )
+                            OutlinedTextField(
+                                value = inputEasting,
+                                onValueChange = { inputEasting = it },
+                                label = { Text(eLabel) },
+                                modifier = Modifier.fillMaxWidth(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                placeholder = { Text("355000.00") }
+                            )
+                        }
                         if (selectedInputType.contains("UTM")) {
                             OutlinedTextField(
                                 value = inputZone,
@@ -188,7 +217,6 @@ fun CoordinateConverterScreen(onBackPressed: () -> Unit) {
             // Dönüştür Butonu
             Button(
                 onClick = {
-                    // Koordinat dönüşüm algoritması burada çalışacak
                     performCoordinateConversion(
                         selectedInputType, selectedOutputType,
                         inputLat, inputLon, inputNorthing, inputEasting, inputZone
@@ -233,20 +261,37 @@ fun CoordinateConverterScreen(onBackPressed: () -> Unit) {
                             readOnly = true
                         )
                     } else {
-                        OutlinedTextField(
-                            value = outputNorthing,
-                            onValueChange = { },
-                            label = { Text("Kuzey (Northing)") },
-                            modifier = Modifier.fillMaxWidth(),
-                            readOnly = true
-                        )
-                        OutlinedTextField(
-                            value = outputEasting,
-                            onValueChange = { },
-                            label = { Text("Doğu (Easting)") },
-                            modifier = Modifier.fillMaxWidth(),
-                            readOnly = true
-                        )
+                        if (coordOrder == CoordPrefs.CoordOrder.X_FIRST) {
+                            OutlinedTextField(
+                                value = outputEasting,
+                                onValueChange = { },
+                                label = { Text(eLabel) },
+                                modifier = Modifier.fillMaxWidth(),
+                                readOnly = true
+                            )
+                            OutlinedTextField(
+                                value = outputNorthing,
+                                onValueChange = { },
+                                label = { Text(nLabel) },
+                                modifier = Modifier.fillMaxWidth(),
+                                readOnly = true
+                            )
+                        } else {
+                            OutlinedTextField(
+                                value = outputNorthing,
+                                onValueChange = { },
+                                label = { Text(nLabel) },
+                                modifier = Modifier.fillMaxWidth(),
+                                readOnly = true
+                            )
+                            OutlinedTextField(
+                                value = outputEasting,
+                                onValueChange = { },
+                                label = { Text(eLabel) },
+                                modifier = Modifier.fillMaxWidth(),
+                                readOnly = true
+                            )
+                        }
                         if (selectedOutputType.contains("UTM") && outputZone.isNotEmpty()) {
                             OutlinedTextField(
                                 value = outputZone,
@@ -280,7 +325,7 @@ private fun CoordinateSystemDropdown(
             value = selectedValue,
             onValueChange = {},
             readOnly = true,
-            modifier = Modifier.menuAnchor(),
+            modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
             label = { Text("Koordinat Sistemi") }
         )
 
@@ -301,9 +346,6 @@ private fun CoordinateSystemDropdown(
     }
 }
 
-// Basit koordinat dönüşüm algoritması (gerçek implementasyon için geodesy kütüphanesi kullanılmalı)
-private fun Double.toRadians(): Double = this * Math.PI / 180.0
-
 private fun performCoordinateConversion(
     inputType: String,
     outputType: String,
@@ -315,30 +357,78 @@ private fun performCoordinateConversion(
     onResult: (String, String, String, String, String) -> Unit
 ) {
     try {
-        if (inputType.contains("Geographic") && outputType.contains("UTM")) {
-            val latVal = lat.toDoubleOrNull() ?: 0.0
-            val lonVal = lon.toDoubleOrNull() ?: 0.0
+        // Ellipsoid: ITRF96 / GRS80 varsayılanı
+        val a = 6378137.0
+        val invF = 298.257222101
 
-            // Basit UTM dönüşümü (yaklaşık)
-            val utmZone = ((lonVal + 180) / 6).toInt() + 1
-            val northing = (latVal * 111320).toString()
-            val easting = (lonVal * 111320 * cos(Math.toRadians(latVal))).toString()
+        fun tm30Transformer() = ProjectionEngine.createTransverseMercator(
+            semiMajor = a,
+            invFlattening = invF,
+            centralMeridianDeg = 30.0,
+            latOriginDeg = 0.0,
+            scaleFactor = 1.0,
+            falseE = 500000.0,
+            falseN = 0.0
+        )
 
-            onResult("", "", northing, easting, utmZone.toString())
-        } else if (inputType.contains("UTM") && outputType.contains("Geographic")) {
-            val northVal = north.toDoubleOrNull() ?: 0.0
-            val eastVal = east.toDoubleOrNull() ?: 0.0
-
-            // Basit Geographic dönüşümü (yaklaşık)
-            val latitude = (northVal / 111320).toString()
-            val longitude = (eastVal / (111320 * cos(Math.toRadians(northVal / 111320)))).toString()
-
-            onResult(latitude, longitude, "", "", "")
-        } else {
-            // Aynı sistem - kopyala
-            onResult(lat, lon, north, east, zone)
+        when {
+            inputType.contains("Geographic") && outputType.contains("UTM") -> {
+                val latVal = parseDouble(lat) ?: error("Geçersiz enlem")
+                val lonVal = parseDouble(lon) ?: error("Geçersiz boylam")
+                val zoneInt = if (zone.isNotBlank()) zone.trim().toIntOrNull() else null
+                val utmZone = zoneInt ?: (((lonVal + 180.0) / 6.0).toInt() + 1)
+                val tf = UtmTransformer(utmZone, true, a, invF)
+                val (easting, northing) = tf.forward(latVal, lonVal)
+                onResult("", "", northing.toString(), easting.toString(), utmZone.toString())
+            }
+            inputType.contains("UTM") && outputType.contains("Geographic") -> {
+                val northVal = parseDouble(north) ?: error("Geçersiz northing")
+                val eastVal = parseDouble(east) ?: error("Geçersiz easting")
+                val utmZone = zone.trim().toIntOrNull() ?: error("UTM zone gerekli")
+                val tf = UtmTransformer(utmZone, true, a, invF)
+                val (latDeg, lonDeg) = tf.inverse(eastVal, northVal)
+                onResult(latDeg.toString(), lonDeg.toString(), "", "", "")
+            }
+            inputType.contains("Geographic") && outputType.contains("TM30") -> {
+                val latVal = parseDouble(lat) ?: error("Geçersiz enlem")
+                val lonVal = parseDouble(lon) ?: error("Geçersiz boylam")
+                val tf = tm30Transformer()
+                val (easting, northing) = tf.forward(latVal, lonVal)
+                onResult("", "", northing.toString(), easting.toString(), "")
+            }
+            inputType.contains("TM30") && outputType.contains("Geographic") -> {
+                val northVal = parseDouble(north) ?: error("Geçersiz northing")
+                val eastVal = parseDouble(east) ?: error("Geçersiz easting")
+                val tf = tm30Transformer()
+                val (latDeg, lonDeg) = tf.inverse(eastVal, northVal)
+                onResult(latDeg.toString(), lonDeg.toString(), "", "", "")
+            }
+            inputType.contains("TM30") && outputType.contains("UTM") -> {
+                val northVal = parseDouble(north) ?: error("Geçersiz northing")
+                val eastVal = parseDouble(east) ?: error("Geçersiz easting")
+                val tm = tm30Transformer()
+                val (latDeg, lonDeg) = tm.inverse(eastVal, northVal)
+                val zoneInt = if (zone.isNotBlank()) zone.trim().toIntOrNull() else null
+                val utmZone = zoneInt ?: (((lonDeg + 180.0) / 6.0).toInt() + 1)
+                val utm = UtmTransformer(utmZone, true, a, invF)
+                val (easting, northing) = utm.forward(latDeg, lonDeg)
+                onResult("", "", northing.toString(), easting.toString(), utmZone.toString())
+            }
+            inputType.contains("UTM") && outputType.contains("TM30") -> {
+                val northVal = parseDouble(north) ?: error("Geçersiz northing")
+                val eastVal = parseDouble(east) ?: error("Geçersiz easting")
+                val utmZone = zone.trim().toIntOrNull() ?: error("UTM zone gerekli")
+                val utm = UtmTransformer(utmZone, true, a, invF)
+                val (latDeg, lonDeg) = utm.inverse(eastVal, northVal)
+                val tm = tm30Transformer()
+                val (easting, northing) = tm.forward(latDeg, lonDeg)
+                onResult("", "", northing.toString(), easting.toString(), "")
+            }
+            else -> {
+                onResult(lat, lon, north, east, zone)
+            }
         }
     } catch (e: Exception) {
-        onResult("Hata", "Hata", "Hata", "Hata", "Hata")
+        onResult("Hata: ${e.message}", "Hata", "Hata", "Hata", "Hata")
     }
 }

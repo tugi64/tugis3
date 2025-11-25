@@ -261,6 +261,7 @@ private fun defKey(def: ProjectionDefinition): String = listOf(
     def.ellipsoidName.orEmpty()
 ).joinToString("|")
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun NumField(value: String, onChange: (String) -> Unit, label: String) {
     OutlinedTextField(
@@ -558,6 +559,39 @@ private fun ProjectionParametersScreen(vm: ProjectionParametersViewModel, onBack
                     }, enabled = !auto) { Text("Sıfırla") }
                 }
             }
+            // --- Hızlı Ayarlar ---
+            ElevatedCard(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Hızlı Ayarlar", style = MaterialTheme.typography.titleMedium)
+                    Text("ITRF96 / TM30 (GRS80) – CM=30°, k0=1.0, FalseE=500000, FalseN=0, Lat0=0")
+                    Button(onClick = {
+                        val def = ProjectionDefinition(
+                            country = "TR",
+                            name = "ITRF96 / TM30",
+                            ellipsoidName = "GRS 1980",
+                            semiMajor = 6378137.0,
+                            invF = 298.257222101,
+                            projection = "Transverse_Mercator",
+                            centralMeridianDeg = 30.0,
+                            falseNorthing = 0.0,
+                            falseEasting = 500000.0,
+                            scale = 1.0,
+                            latitudeOrigin = 0.0,
+                            stdParallel1 = null,
+                            stdParallel2 = null
+                        )
+                        scope.launch {
+                            vm.applyDefinition(def)
+                            // UTM alanlarını boşalt (TM30 kullanılıyor)
+                            zone = ""; epsg = ""; north = true
+                            // Gelişmiş bölümü göstererek değerleri görünür kıl
+                            showAdvanced = true
+                            // UI state recomposition ile güncellenecek
+                            snack.showSnackbar("ITRF96 / TM30 uygulandı")
+                        }
+                    }) { Text("Hızlı Ayarla: ITRF96 / TM30 (GRS80)") }
+                }
+            }
             // --- Yeni: Gelişmiş manuel projeksiyon parametre kartı ---
             ElevatedCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -682,7 +716,7 @@ private fun ProjectionParametersScreen(vm: ProjectionParametersViewModel, onBack
                         !hasFavorites && catalogTab > 1 -> 0
                         else -> catalogTab
                     }
-                    TabRow(selectedTabIndex = effectiveIndex) {
+                    PrimaryTabRow(selectedTabIndex = effectiveIndex) {
                         tabs.forEachIndexed { idx, title ->
                             Tab(
                                 selected = effectiveIndex == idx,

@@ -11,6 +11,16 @@
         android:text="COGO"
         android:textSize="24sp"
         android:textStyle="bold" />
+
+    <!-- Dinamik eksen etiketi bilgisi -->
+    <TextView
+        android:id="@+id/tvAxisMapping"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textSize="14sp"
+        android:layout_marginTop="8dp" />
+
     <EditText
         android:id="@+id/etCOGOInput"
         android:layout_width="match_parent"

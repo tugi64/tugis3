@@ -2,8 +2,6 @@ package com.example.tugis3.data.db
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
-import androidx.room.migration.Migration
-import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.tugis3.data.db.dao.ProjectDao
 import com.example.tugis3.data.db.dao.PointDao
 import com.example.tugis3.data.db.dao.NtripProfileDao
@@ -27,6 +25,8 @@ import com.example.tugis3.data.db.entity.GisFeatureEntity
 import com.example.tugis3.data.db.dao.GisFeatureDao
 import com.example.tugis3.data.db.entity.MeasurementLogEntity
 import com.example.tugis3.data.db.dao.MeasurementLogDao
+import com.example.tugis3.data.db.entity.LineDefinitionEntity
+import com.example.tugis3.data.db.dao.LineDefinitionDao
 
 // Dummy reference to enforce symbol resolution (no-op)
 @Suppress("unused")
@@ -46,10 +46,11 @@ private val _calibRef = CalibrationPointEntity::class
         CadEntityEntity::class,
         SurveyRangeEntity::class,
         GisFeatureEntity::class,
-        MeasurementLogEntity::class // yeni
+        MeasurementLogEntity::class,
+        LineDefinitionEntity::class
     ),
-    version = 27, // 26 -> 27 measurement_logs tablosu
-    exportSchema = true
+    version = 34, // 33 -> 34: cad_layers tablosuna locked ve isWorkLayer alanları eklendi
+    exportSchema = false // Geçici: kotlinx-serialization sürüm çakışmasını önlemek için kapatıldı
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun projectDao(): ProjectDao
@@ -64,27 +65,11 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun surveyRangeDao(): SurveyRangeDao
     abstract fun gisFeatureDao(): GisFeatureDao
     abstract fun measurementLogDao(): MeasurementLogDao
+    abstract fun lineDefinitionDao(): LineDefinitionDao
 
     companion object {
-        val MIGRATION_26_27 = object : Migration(26, 27) {
-            override fun migrate(database: SupportSQLiteDatabase) {
-                // Tabloyu yeniden oluşturmak için (geliştirme için):
-                database.execSQL("DROP TABLE IF EXISTS measurement_logs")
-                database.execSQL(
-                    """CREATE TABLE IF NOT EXISTS measurement_logs (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                        projectId INTEGER,
-                        mode TEXT,
-                        eventType TEXT NOT NULL,
-                        message TEXT,
-                        createdAt INTEGER NOT NULL,
-                        extra TEXT
-                    )"""
-                )
-                database.execSQL("CREATE INDEX IF NOT EXISTS index_measurement_logs_createdAt ON measurement_logs(createdAt ASC)")
-                database.execSQL("CREATE INDEX IF NOT EXISTS index_measurement_logs_projectId ON measurement_logs(projectId ASC)")
-            }
-        }
+        // MIGRATION_26_27 önce burada tanımlıydı; tekil kaynak için AppDatabaseMigrations.ALL kullanılıyor.
+        // Yeni migration zinciri AppDatabaseMigrations içinde yönetilecek.
     }
 }
 // Room veritabanı oluşturulurken migration eklenmeli:

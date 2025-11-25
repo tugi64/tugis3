@@ -859,16 +859,24 @@ private fun worldRadiusToPx(r: Double, b: Bounds, w: Int, h: Int, scale: Float):
 }
 
 fun exportCadAndMap(context: Context, view: View) {
-    val bitmap = getBitmapFromView(view)
-    val file = File(context.getExternalFilesDir(Environment.DIRECTORY_PICTURES), "cad_export_${System.currentTimeMillis()}.png")
-    FileOutputStream(file).use { out -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, out) }
-    val uri = FileProvider.getUriForFile(context, context.packageName + ".provider", file)
-    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-        type = "image/png"
-        putExtra(Intent.EXTRA_STREAM, uri)
-        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    // FileProvider authority Manifest'te com.example.tugis3.fileprovider olarak tanımlı
+    val authority = context.packageName + ".fileprovider"
+    if (view.width == 0 || view.height == 0) return // görünür değilken oluşturma
+    runCatching {
+        val bitmap = getBitmapFromView(view)
+        val file = File(context.getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+            "cad_export_${System.currentTimeMillis()}.png")
+        FileOutputStream(file).use { out -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, out) }
+        val uri = FileProvider.getUriForFile(context, authority, file)
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "image/png"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(shareIntent, "Paylaş"))
+    }.onFailure {
+        // Sessiz log bırakmak yerine ileride CrashLogger entegre edilebilir
     }
-    context.startActivity(Intent.createChooser(shareIntent, "Paylaş"))
 }
 
 fun getBitmapFromView(view: View): Bitmap {

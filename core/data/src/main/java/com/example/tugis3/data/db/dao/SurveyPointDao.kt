@@ -9,6 +9,9 @@ interface SurveyPointDao {
     @Query("SELECT * FROM survey_points WHERE projectId = :projectId ORDER BY timestamp DESC")
     fun observePoints(projectId: Long): Flow<List<SurveyPointEntity>>
 
+    @Query("SELECT * FROM survey_points ORDER BY timestamp DESC")
+    fun observeAllPoints(): Flow<List<SurveyPointEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(point: SurveyPointEntity): Long
 

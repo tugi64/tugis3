@@ -16,6 +16,7 @@ import com.example.tugis3.data.db.dao.CadEntityDao
 import com.example.tugis3.data.db.dao.SurveyRangeDao
 import com.example.tugis3.data.db.dao.GisFeatureDao
 import com.example.tugis3.data.db.dao.MeasurementLogDao
+import com.example.tugis3.data.db.dao.LineDefinitionDao
 import com.example.tugis3.data.repository.NtripProfileRepository
 import com.example.tugis3.data.repository.PointRepository
 import com.example.tugis3.data.repository.ProjectRepository
@@ -64,6 +65,7 @@ object DataModule {
     @Provides fun provideSurveyRangeDao(db: AppDatabase): SurveyRangeDao = db.surveyRangeDao()
     @Provides fun provideGisFeatureDao(db: AppDatabase): GisFeatureDao = db.gisFeatureDao()
     @Provides fun provideMeasurementLogDao(db: AppDatabase): MeasurementLogDao = db.measurementLogDao()
+    @Provides fun provideLineDefinitionDao(db: AppDatabase): LineDefinitionDao = db.lineDefinitionDao()
 
     // --- Repository Providers ---
     @Provides @Singleton fun provideProjectRepository(dao: ProjectDao): ProjectRepository = ProjectRepository(dao)

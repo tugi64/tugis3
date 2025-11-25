@@ -12,7 +12,6 @@ import com.example.tugis3.gnss.GnssEngine
 import com.example.tugis3.gnss.model.GnssObservation
 import com.example.tugis3.coord.transform.NoOpTransformer
 import com.example.tugis3.coord.transform.ProjectionEngine
-import com.example.tugis3.coord.transform.CoordinateTransformer
 import com.example.tugis3.prefs.PrefsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -21,6 +20,15 @@ import javax.inject.Inject
 import kotlin.math.atan2
 import kotlin.math.sqrt
 import kotlin.math.abs
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+
+data class StakeoutUiState(
+    val projectId: Long? = null,
+    val query: String = "",
+    val recents: List<PointEntity> = emptyList(),
+    val results: List<PointEntity> = emptyList(),
+    val selected: PointEntity? = null
+)
 
 @HiltViewModel
 class PointStakeoutViewModel @Inject constructor(
@@ -54,10 +62,14 @@ class PointStakeoutViewModel @Inject constructor(
     private val _manualTarget = MutableStateFlow<StakeoutTarget?>(null)
     private val _selectedPointName = MutableStateFlow<String?>(null)
 
+    private val _query = MutableStateFlow("")
+    private val _selected = MutableStateFlow<PointEntity?>(null)
+
     val activeProject = projectRepo.observeActiveProject()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     // Projedeki kayıtlı noktalar (silinmemiş)
+    @OptIn(ExperimentalCoroutinesApi::class)
     val projectPoints: StateFlow<List<PointEntity>> = activeProject
         .flatMapLatest { p -> if (p == null) flowOf(emptyList()) else pointRepo.observePoints(p.id) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -170,6 +182,11 @@ class PointStakeoutViewModel @Inject constructor(
         val withinV = if (vertDiff != null) abs(vertDiff) <= vTol else false
         StakeoutState(obs, target, horizontal, vertDiff, offsetN, offsetE, bearing, withinH, withinV, withinH && withinV)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StakeoutState(null,null,null,null,null,null,null,false,false,false))
+
+    // Alet yüksekliği (m)
+    val instrumentHeight: StateFlow<Double> = prefs.instrumentHeight
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0.0)
+    fun setInstrumentHeight(v: Double) { viewModelScope.launch { prefs.setInstrumentHeight(v) } }
 
     fun toggleSimulation() { _simulate.value = !_simulate.value }
     fun setSimOffsetN(v:Double){ _simOffsetN.value = v }

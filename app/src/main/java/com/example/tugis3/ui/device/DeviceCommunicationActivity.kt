@@ -1,6 +1,9 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.example.tugis3.ui.device
 
 import android.Manifest
+import android.app.Application
 import android.bluetooth.BluetoothDevice
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -9,6 +12,7 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -17,6 +21,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,8 +31,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewModelScope
+import com.example.tugis3.Tugis3Application
 import com.example.tugis3.bluetooth.BluetoothGnssManager
 import com.example.tugis3.gnss.GnssPositionRepository
 import com.example.tugis3.gnss.NmeaLogRepository
@@ -58,8 +65,8 @@ class DeviceCommunicationActivity : ComponentActivity() {
 // Basit UI modeli
 data class BTDeviceUi(val mac: String, val name: String, val status: String)
 
-class DeviceCommunicationViewModel : androidx.lifecycle.ViewModel() {
-    private val btManager = BluetoothGnssManager()
+class DeviceCommunicationViewModel(application: Application) : AndroidViewModel(application) {
+    private val btManager = BluetoothGnssManager(application.applicationContext)
     internal val discoveredDevices = mutableMapOf<String, BluetoothDevice>()
 
     var isScanning by mutableStateOf(false)
@@ -86,8 +93,10 @@ class DeviceCommunicationViewModel : androidx.lifecycle.ViewModel() {
     fun appendLog(line: String) { log += line + "\n" }
 
     fun ensureBluetoothReady(): Boolean {
-        if (!btManager.isBluetoothSupported()) { appendLog("[HATA] Cihaz Bluetooth desteklemiyor"); return false }
-        if (!btManager.isEnabled()) { appendLog("[UYARI] Bluetooth kapalı, lütfen açın"); return false }
+        // btManager.isBluetoothSupported() ve isEnabled() yerine adapter kontrolü yapalım
+        val adapter = btManager.bluetoothAdapter
+        if (adapter == null) { appendLog("[HATA] Cihaz Bluetooth desteklemiyor"); return false }
+        if (!adapter.isEnabled) { appendLog("[UYARI] Bluetooth kapalı, lütfen açın"); return false }
         return true
     }
 
@@ -98,19 +107,25 @@ class DeviceCommunicationViewModel : androidx.lifecycle.ViewModel() {
         devices = emptyList()
         discoveredDevices.clear()
         appendLog("Tarama başlatılıyor...")
-        val ok = btManager.startScan(context, object : BluetoothGnssManager.ScanCallback {
-            override fun onDeviceFound(device: BluetoothDevice) { addOrUpdateDevice(device) }
-            override fun onFinished() { isScanning = false; appendLog("Tarama bitti (${devices.size} cihaz)") }
-            override fun onError(message: String) { isScanning = false; appendLog("[Tarama Hatası] $message") }
-        })
-        if (!ok) { isScanning = false; appendLog("Tarama başlatılamadı") }
+        // startScan metodunu çağıralım - callback parametresi yok, receiver ile çalışıyor
+        try {
+            btManager.startDiscovery()
+            appendLog("Tarama başlatıldı")
+        } catch (e: Exception) {
+            isScanning = false
+            appendLog("Tarama başlatılamadı: ${e.message}")
+        }
     }
 
     fun stopScan(context: Context) {
         if (isScanning) {
-            btManager.stopScan(context)
-            isScanning = false
-            appendLog("Tarama iptal edildi")
+            try {
+                btManager.stopDiscovery()
+                isScanning = false
+                appendLog("Tarama iptal edildi")
+            } catch (e: Exception) {
+                appendLog("Tarama durdurma hatası: ${e.message}")
+            }
         }
     }
 
@@ -138,15 +153,21 @@ class DeviceCommunicationViewModel : androidx.lifecycle.ViewModel() {
 
     fun toggleConnection(context: Context) {
         val dev = _selected.value ?: return
-        if (_connected.value) disconnect() else connect(dev, context)
+        if (_connected.value) disconnect(context) else connect(dev, context)
     }
 
     fun pairSelected() {
         val dev = _selected.value ?: return
         val real = discoveredDevices[dev.mac] ?: return
         if (real.bondState == BluetoothDevice.BOND_BONDED) { appendLog("Zaten eşleşmiş") ; return }
-        val ok = btManager.pairDevice(real)
-        appendLog(if (ok) "Eşleştirme isteği gönderildi" else "Eşleştirme isteği başarısız")
+        try {
+            val ok = real.createBond()
+            appendLog(if (ok) "Eşleştirme isteği gönderildi" else "Eşleştirme isteği başarısız")
+        } catch (e: SecurityException) {
+            appendLog("Eşleştirme izin hatası: ${e.message}")
+        } catch (e: Exception) {
+            appendLog("Eşleştirme hatası: ${e.message}")
+        }
     }
 
     private fun connect(dev: BTDeviceUi, context: Context) {
@@ -160,7 +181,7 @@ class DeviceCommunicationViewModel : androidx.lifecycle.ViewModel() {
                 _connected.value = true
                 appendLog("Bağlandı: ${dev.name}")
                 // GNSS service başlat
-                try { context.startService(Intent(context, GnssService::class.java).setAction(GnssService.ACTION_START)) } catch (_: Exception) {}
+                GnssService.start(context)
                 startReaderLoop()
             } catch (e: Exception) {
                 appendLog("Bağlantı hatası: ${e.message}")
@@ -169,32 +190,40 @@ class DeviceCommunicationViewModel : androidx.lifecycle.ViewModel() {
         }
     }
 
-    private fun disconnect() {
+    private fun disconnect(context: Context) {
         _connected.value = false
         appendLog("Bağlantı kesiliyor...")
         readerJob?.cancel(); readerJob = null
         streamJob?.cancel(); streamJob = null
         btManager.disconnect()
         appendLog("Bağlantı kesildi")
-        // GNSS service durdur (cihaz bağlantısı yoksa)
-        // Not: Birden fazla sağlayıcı düşünülüyorsa referans sayacı eklenebilir.
+        // GNSS service durdur
+        GnssService.stop(context)
     }
 
     private fun startReaderLoop() {
         readerJob?.cancel()
-        readerJob = viewModelScope.launch {
+        readerJob = viewModelScope.launch(Dispatchers.IO) {
             val buf = ByteArray(4096)
             while (_connected.value) {
                 try {
-                    val r = btManager.readAvailable(buf)
-                    if (r > 0) {
-                        val text = String(buf, 0, r)
-                        // NMEA satırlarını böl
-                        text.split('\n', '\r').filter { it.isNotBlank() }.forEach { appendNmea(it.trim()) }
+                    // BluetoothGnssManager'dan inputStream alıp okuyoruz
+                    val stream = btManager.inputStream
+                    if (stream != null && stream.available() > 0) {
+                        val bytesRead = stream.read(buf, 0, buf.size)
+                        if (bytesRead > 0) {
+                            val text = String(buf, 0, bytesRead)
+                            withContext(Dispatchers.Main) {
+                                // NMEA satırlarını böl
+                                text.split('\n', '\r').filter { it.isNotBlank() }.forEach { appendNmea(it.trim()) }
+                            }
+                        }
                     }
                 } catch (e: Exception) {
-                    appendLog("Okuma hatası: ${e.message}")
-                    _connected.value = false
+                    withContext(Dispatchers.Main) {
+                        appendLog("Okuma hatası: ${e.message}")
+                        _connected.value = false
+                    }
                 }
                 delay(150)
             }
@@ -248,8 +277,14 @@ class DeviceCommunicationViewModel : androidx.lifecycle.ViewModel() {
             if (!_connected.value) { appendLog("Komut gönderilemedi: bağlantı yok"); return@launch }
             try {
                 val line = if (cmd.endsWith("\r\n")) cmd else cmd + "\r\n"
-                btManager.write(line.toByteArray())
-                appendNmea("> $cmd")
+                val outputStream = btManager.outputStream
+                if (outputStream != null) {
+                    outputStream.write(line.toByteArray())
+                    outputStream.flush()
+                    appendNmea("> $cmd")
+                } else {
+                    appendLog("Komut gönderilemedi: output stream yok")
+                }
             } catch (e: Exception) { appendLog("Komut hatası: ${e.message}") }
         }
     }
@@ -259,6 +294,8 @@ class DeviceCommunicationViewModel : androidx.lifecycle.ViewModel() {
     override fun onCleared() {
         readerJob?.cancel(); streamJob?.cancel()
         try { btManager.disconnect() } catch (_: Exception) {}
+        // ViewModel temizlenirken servisi de durdur (bağlantı kalmadı varsayımı)
+        GnssService.stop(Tugis3Application.appContext)
         super.onCleared()
     }
 }
@@ -267,6 +304,7 @@ class DeviceCommunicationViewModel : androidx.lifecycle.ViewModel() {
 @Composable
 fun DeviceCommunicationScreen(vm: DeviceCommunicationViewModel) {
     val context = LocalContext.current
+    var selectedTab by remember { mutableStateOf(0) }
     var selectedManufacturer by remember { mutableStateOf("SOUTH") }
     var selectedMode by remember { mutableStateOf("Bluetooth") }
     var debugMode by remember { mutableStateOf(false) }
@@ -316,28 +354,25 @@ fun DeviceCommunicationScreen(vm: DeviceCommunicationViewModel) {
         if (missing) permissionLauncher.launch(neededPermissions.toTypedArray()) else vm.scan(context)
     }
 
-    val manufacturerModels = remember {
-        mapOf(
-            "SOUTH" to listOf("ALPS2", "S82", "N80T", "S86"),
-            "Trimble" to listOf("R10", "R12"),
-            "Leica" to listOf("GS18i", "GS16"),
-            "Topcon" to listOf("HiPer VR", "HiPer HR")
-        )
-    }
-    var selectedModel by remember { mutableStateOf(manufacturerModels[selectedManufacturer]?.firstOrNull() ?: "") }
+    val tabs = listOf("İletişim", "Gezici", "Sabit", "Statik", "Durum", "Ayarlar", "Cihaz Bilgi", "Doğruluk", "Sensör", "Radyo")
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Device Communication") },
+                title = { Text("Cihaz İletişim") },
+                navigationIcon = {
+                    IconButton(onClick = { (context as? ComponentActivity)?.finish() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Geri")
+                    }
+                },
                 actions = {
                     IconButton(onClick = { vm.exportNmea(context) }) {
-                        Icon(Icons.Default.FileDownload, contentDescription = "Export NMEA")
+                        Icon(Icons.Default.FileDownload, "NMEA Dışa Aktar")
                     }
                     IconButton(onClick = { debugMode = !debugMode }) {
                         Icon(
                             Icons.Default.BugReport,
-                            contentDescription = "Debug Mode",
+                            "Debug",
                             tint = if (debugMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -349,22 +384,67 @@ fun DeviceCommunicationScreen(vm: DeviceCommunicationViewModel) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Manufacturer & Model Selection
-            Card(
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            // Tab seçimi
+            PrimaryScrollableTabRow(selectedTabIndex = selectedTab) {
+                tabs.forEachIndexed { index, title ->
+                    Tab(
+                        selected = selectedTab == index,
+                        onClick = { selectedTab = index },
+                        text = { Text(title) }
+                    )
+                }
+            }
+
+            // Tab içeriği
+            when (selectedTab) {
+                0 -> CommunicationTab(vm, context, selectedManufacturer, selectedMode,
+                    { selectedManufacturer = it }, { selectedMode = it },
+                    connected, selected, nmea, command, { command = it },
+                    permissionDenied, ::requestOrScan, debugMode)
+                1 -> RoverSettingsTab(context)
+                2 -> BaseSettingsTab(context)
+                3 -> StaticSettingsTab(context)
+                4 -> StatusTab(connected, nmea)
+                5 -> DeviceSettingsTab(context)
+                6 -> DeviceInfoTab()
+                7 -> AccuracyInspectionTab()
+                8 -> SensorCalibrationTab()
+                9 -> RadioSettingsTab()
+            }
+        }
+    }
+}
+
+@Composable
+private fun CommunicationTab(
+    vm: DeviceCommunicationViewModel,
+    context: Context,
+    selectedManufacturer: String,
+    selectedMode: String,
+    onManufacturerChange: (String) -> Unit,
+    onModeChange: (String) -> Unit,
+    connected: Boolean,
+    selected: BTDeviceUi?,
+    nmea: List<String>,
+    command: String,
+    onCommandChange: (String) -> Unit,
+    permissionDenied: Boolean,
+    requestOrScan: () -> Unit,
+    debugMode: Boolean
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Manufacturer & Model Selection
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text(
-                        text = "Select Model",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text("Cihaz Markası", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     var manuExpanded by remember { mutableStateOf(false) }
                     ExposedDropdownMenuBox(
                         expanded = manuExpanded,
@@ -374,207 +454,719 @@ fun DeviceCommunicationScreen(vm: DeviceCommunicationViewModel) {
                             value = selectedManufacturer,
                             onValueChange = { },
                             readOnly = true,
-                            label = { Text("Manufacturer") },
+                            label = { Text("Marka") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = manuExpanded) },
-                            modifier = Modifier
-                                .fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                         )
-                        ExposedDropdownMenu(
-                            expanded = manuExpanded,
-                            onDismissRequest = { manuExpanded = false }
-                        ) {
-                            listOf("SOUTH", "Trimble", "Leica", "Topcon").forEach { manufacturer ->
+                        ExposedDropdownMenu(expanded = manuExpanded, onDismissRequest = { manuExpanded = false }) {
+                            listOf("SOUTH", "Trimble", "Leica", "Topcon", "CHC", "Hi-Target").forEach { manufacturer ->
                                 DropdownMenuItem(
                                     text = { Text(manufacturer) },
-                                    onClick = {
-                                        selectedManufacturer = manufacturer
-                                        selectedModel = manufacturerModels[manufacturer]?.firstOrNull() ?: ""
-                                        manuExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                    var modelExpanded by remember { mutableStateOf(false) }
-                    ExposedDropdownMenuBox(
-                        expanded = modelExpanded,
-                        onExpandedChange = { modelExpanded = !modelExpanded }
-                    ) {
-                        OutlinedTextField(
-                            value = selectedModel,
-                            onValueChange = { },
-                            readOnly = true,
-                            label = { Text("Model") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = modelExpanded) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                        )
-                        ExposedDropdownMenu(
-                            expanded = modelExpanded,
-                            onDismissRequest = { modelExpanded = false }
-                        ) {
-                            val models = manufacturerModels[selectedManufacturer].orEmpty()
-                            models.forEach { model ->
-                                DropdownMenuItem(
-                                    text = { Text(model) },
-                                    onClick = {
-                                        selectedModel = model
-                                        modelExpanded = false
-                                    }
+                                    onClick = { onManufacturerChange(manufacturer); manuExpanded = false }
                                 )
                             }
                         }
                     }
                 }
             }
+        }
 
-            // Communication Mode Selection
-            Card(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Text(
-                        text = "Communication Mode",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
+        // Communication Mode
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("İletişim Modu", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(
-                            onClick = { selectedMode = "Bluetooth" },
+                            onClick = { onModeChange("Bluetooth") },
                             label = { Text("Bluetooth") },
                             selected = selectedMode == "Bluetooth",
-                            leadingIcon = { Icon(Icons.Default.Bluetooth, contentDescription = "Bluetooth") }
+                            leadingIcon = { Icon(Icons.Default.Bluetooth, null) }
                         )
                         FilterChip(
-                            onClick = { selectedMode = "WLAN" },
-                            label = { Text("WLAN") },
-                            selected = selectedMode == "WLAN",
-                            leadingIcon = { Icon(Icons.Default.Wifi, contentDescription = "WLAN") }
+                            onClick = { onModeChange("WiFi") },
+                            label = { Text("WiFi") },
+                            selected = selectedMode == "WiFi",
+                            leadingIcon = { Icon(Icons.Default.Wifi, null) }
                         )
                         FilterChip(
-                            onClick = { selectedMode = "Demo" },
-                            label = { Text("Demo") },
-                            selected = selectedMode == "Demo",
-                            leadingIcon = { Icon(Icons.Default.PlayArrow, contentDescription = "Demo") }
+                            onClick = { onModeChange("USB") },
+                            label = { Text("USB") },
+                            selected = selectedMode == "USB",
+                            leadingIcon = { Icon(Icons.Default.Usb, null) }
                         )
                     }
                 }
             }
+        }
 
-            // Device List (Bluetooth Mode)
-            if (selectedMode == "Bluetooth") {
-                Card(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
+        // Bluetooth Device List
+        if (selectedMode == "Bluetooth") {
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = "Available Devices",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Text("Bluetooth Cihazlar", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedButton(onClick = { vm.stopScan(context) }, enabled = vm.isScanning) { Text("Stop") }
-                                Button(
-                                    onClick = { requestOrScan() },
-                                    enabled = !vm.isScanning
-                                ) {
-                                    if (vm.isScanning) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(16.dp),
-                                            strokeWidth = 2.dp
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                    }
-                                    Text(if (vm.isScanning) "Scanning..." else "Scan")
+                                if (vm.isScanning) {
+                                    OutlinedButton(onClick = { vm.stopScan(context) }) { Text("Durdur") }
+                                }
+                                Button(onClick = { requestOrScan() }, enabled = !vm.isScanning) {
+                                    if (vm.isScanning) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                    Text(if (vm.isScanning) "Taranıyor..." else "Tara")
                                 }
                             }
                         }
                         if (permissionDenied) {
-                            Text("Bluetooth tarama izinleri gerekli", color = MaterialTheme.colorScheme.error)
+                            Text("Bluetooth izinleri gerekli", color = MaterialTheme.colorScheme.error)
                         }
                         Spacer(modifier = Modifier.height(12.dp))
                         if (vm.devices.isEmpty() && !vm.isScanning) {
-                            Text("Cihaz yok. Tarama başlatın.")
+                            Text("Cihaz bulunamadı. Tarama başlatın.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         } else {
-                            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                items(vm.devices) { device ->
-                                    BluetoothDeviceCard(
-                                        device = device,
-                                        onConnect = { vm.selectDevice(device); vm.toggleConnection(context) },
-                                        isConnected = connected && selected?.mac == device.mac,
-                                        onSelectOnly = { vm.selectDevice(device) }
-                                    )
-                                }
+                            vm.devices.forEach { device ->
+                                BluetoothDeviceCard(
+                                    device = device,
+                                    onConnect = { vm.selectDevice(device); vm.toggleConnection(context) },
+                                    isConnected = connected && selected?.mac == device.mac,
+                                    onSelectOnly = { vm.selectDevice(device) }
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
                             }
                         }
-                        HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                        HorizontalDivider(Modifier.padding(vertical = 12.dp))
                         selected?.let { d ->
                             Text("Seçili: ${d.name} (${d.mac})", fontWeight = FontWeight.Medium)
-                            val isPaired = d.status == "Paired"
+                            Spacer(modifier = Modifier.height(8.dp))
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Button(onClick = { vm.toggleConnection(context) }) { Text(if (connected) "Disconnect" else "Connect") }
-                                if (!isPaired) {
-                                    OutlinedButton(onClick = { vm.pairSelected() }) { Text("Pair") }
+                                Button(onClick = { vm.toggleConnection(context) }) {
+                                    Text(if (connected) "Bağlantıyı Kes" else "Bağlan")
                                 }
-                                OutlinedButton(onClick = { vm.clearLog() }, enabled = nmea.isNotEmpty()) { Text("Temizle") }
-                            }
-                        } ?: Text("Cihaz seçin")
-                        if (connected) {
-                            Spacer(Modifier.height(12.dp))
-                            Text("NMEA / Data Stream", style = MaterialTheme.typography.titleMedium)
-                            ElevatedCard(Modifier.fillMaxWidth().heightIn(max = 240.dp)) {
-                                Column(Modifier.padding(8.dp)) {
-                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                        Text("Son ${nmea.size} satır", style = MaterialTheme.typography.labelSmall)
-                                        TextButton(onClick = { vm.exportNmea(context) }) { Text("Dışa Aktar") }
-                                    }
-                                    LazyColumn(reverseLayout = true, modifier = Modifier.fillMaxWidth().heightIn(max = 180.dp)) {
-                                        items(nmea.reversed()) { line -> Text(line, style = MaterialTheme.typography.bodySmall) }
-                                    }
-                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        OutlinedTextField(value = command, onValueChange = { command = it }, label = { Text("Komut") }, modifier = Modifier.weight(1f))
-                                        Button(onClick = { vm.sendCommand(command); command = "" }, enabled = command.isNotBlank()) { Text("Gönder") }
-                                    }
+                                if (d.status != "Paired") {
+                                    OutlinedButton(onClick = { vm.pairSelected() }) { Text("Eşleştir") }
                                 }
                             }
-                        }
-                        if (debugMode) {
-                            HorizontalDivider(Modifier.padding(vertical = 8.dp))
-                            Text(vm.log, style = MaterialTheme.typography.bodySmall, modifier = Modifier.heightIn(min = 0.dp, max = 140.dp))
                         }
                     }
                 }
             }
 
-            // WLAN Mode
-            if (selectedMode == "WLAN") {
-                // Basit placeholder
-                Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp)) { Text("WLAN Connection (TODO)") } }
-            }
-
-            // Demo Mode
-            if (selectedMode == "Demo") {
-                Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp)) { Text("Demo Mode (Simülasyon)") } }
-            }
-
-            // Debug Mode
-            if (debugMode && selectedMode != "Bluetooth") {
-                Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp)) { Text("Debug Log Boş: Bluetooth dışı mod") } }
+            // NMEA Stream
+            if (connected) {
+                item {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("NMEA Veri Akışı", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    TextButton(onClick = { vm.clearLog() }) { Text("Temizle") }
+                                    TextButton(onClick = { vm.exportNmea(context) }) { Text("Dışa Aktar") }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            ElevatedCard(Modifier.fillMaxWidth().heightIn(max = 200.dp)) {
+                                LazyColumn(reverseLayout = true, modifier = Modifier.padding(8.dp)) {
+                                    items(nmea.reversed()) { line ->
+                                        Text(line, style = MaterialTheme.typography.bodySmall, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedTextField(
+                                    value = command,
+                                    onValueChange = onCommandChange,
+                                    label = { Text("Komut Gönder") },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true
+                                )
+                                Button(
+                                    onClick = { vm.sendCommand(command); onCommandChange("") },
+                                    enabled = command.isNotBlank()
+                                ) {
+                                    Text("Gönder")
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
+
+        // Debug Log
+        if (debugMode) {
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Debug Log", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(vm.log, style = MaterialTheme.typography.bodySmall, modifier = Modifier.heightIn(max = 150.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RoverSettingsTab(context: Context) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Gezici (Rover) Ayarları", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text("GNSS alıcısını gezici mod için yapılandırın", style = MaterialTheme.typography.bodyMedium)
+                    HorizontalDivider()
+
+                    Button(
+                        onClick = {
+                            try {
+                                context.startActivity(Intent(context, RoverSettingsActivity::class.java))
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Gezici ayarları henüz hazır değil", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Router, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Gezici Yapılandırma")
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            Toast.makeText(context, "CORS ayarları gezici yapılandırma içinde bulunur", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Satellite, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("CORS Bağlantı Ayarları")
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            Toast.makeText(context, "RTK radyo ayarları gezici yapılandırma içinde bulunur", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Wifi, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("RTK Radyo Ayarları")
+                    }
+                }
+            }
+        }
+
+        item {
+            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Info, null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Gezici Mod Hakkında", fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Gezici mod, GNSS alıcısının düzeltme verisi alarak RTK ölçüm yapmasını sağlar.\n\n" +
+                        "• CORS: İnternet üzerinden sanal referans istasyonu\n" +
+                        "• RTK Radyo: Radyo modem ile sabit istasyondan düzeltme\n" +
+                        "• Uydu yükseklik açısı: 10-15° önerilir\n" +
+                        "• Ağ rölesi: Düzeltmeyi radyo ile paylaşma\n" +
+                        "• Veri bağlantısı: NTRIP/Radio/Network\n" +
+                        "• Gelişmiş ayarlar: Uydu sistemi, kesme açısı, diferansiyel veri formatı",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BaseSettingsTab(context: Context) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Sabit İstasyon Ayarları", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text("GNSS alıcısını sabit istasyon modu için yapılandırın", style = MaterialTheme.typography.bodyMedium)
+                    HorizontalDivider()
+
+                    Button(
+                        onClick = {
+                            try {
+                                context.startActivity(Intent(context, BaseSettingsActivity::class.java))
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Sabit istasyon ayarları henüz hazır değil", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Router, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Sabit İstasyon Yapılandırma")
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            Toast.makeText(context, "Radyo ayarları sabit yapılandırma içinde bulunur", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Radio, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Radyo Modem Ayarları")
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            Toast.makeText(context, "Anten ayarları sabit yapılandırma içinde bulunur", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Adjust, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Anten Yüksekliği Ayarları")
+                    }
+                }
+            }
+        }
+
+        item {
+            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Info, null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Sabit İstasyon Hakkında", fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Sabit istasyon, bilinen bir noktada RTK düzeltme verisi yayını yapar.\n\n" +
+                        "• Başlangıç Modu: Bilinen nokta / Ortalama konum / Buraya Taşı\n" +
+                        "• Radyo Frekansı: 430-470 MHz arası\n" +
+                        "• Veri formatı: RTCM3.0/RTCM3.2/CMR/CMRx önerilir\n" +
+                        "• Anten yüksekliği: Hassas ölçülmeli\n" +
+                        "• Veri bağlantısı: Radio/Network/External Radio\n" +
+                        "• Gelişmiş ayarlar: Mesaj tipi, yayın aralığı",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StaticSettingsTab(context: Context) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Statik Ölçüm Ayarları", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text("Statik GNSS ölçümü için yapılandırma", style = MaterialTheme.typography.bodyMedium)
+                    HorizontalDivider()
+
+                    Button(
+                        onClick = {
+                            try {
+                                context.startActivity(Intent(context, StaticSettingsActivity::class.java))
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Statik ayarlar henüz hazır değil", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Timer, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Statik Yapılandırma")
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            Toast.makeText(context, "Kayıt ayarları statik yapılandırma içinde bulunur", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Save, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Veri Kayıt Ayarları")
+                    }
+                }
+            }
+        }
+
+        item {
+            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Info, null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Statik Ölçüm Hakkında", fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Statik GNSS ölçümü, yüksek hassasiyetli konum belirleme için kullanılır.\n\n" +
+                        "• Kayıt aralığı: 1-30 saniye (varsayılan 15s)\n" +
+                        "• Minimum süre: 20-60 dakika\n" +
+                        "• Uydu sistemi: GPS+GLONASS+GALILEO+BEIDOU\n" +
+                        "• Anten parametreleri: Tip ve yükseklik\n" +
+                        "• Kesme açısı: 10-15° önerilir\n" +
+                        "• Post-processing ile cm hassasiyet",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatusTab(connected: Boolean, nmea: List<String>) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Çalışma Modu Durumu", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Bağlantı:")
+                        Text(
+                            if (connected) "Bağlı" else "Bağlı Değil",
+                            color = if (connected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Çalışma Modu:")
+                        Text("Hazır", fontWeight = FontWeight.Medium)
+                    }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Veri Akışı:")
+                        Text("${nmea.size} satır", fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeviceSettingsTab(context: Context) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Cihaz Ayarları", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    HorizontalDivider()
+
+                    OutlinedButton(
+                        onClick = { /* Yapılandırma Profilleri */ },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Settings, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Yapılandırma Profilleri")
+                    }
+
+                    OutlinedButton(
+                        onClick = { /* Varsayılan Ayarlar */ },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.RestartAlt, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Varsayılan Ayarlara Dön")
+                    }
+
+                    OutlinedButton(
+                        onClick = { /* Cihaz Güncellemesi */ },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Update, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Firmware Güncelleme")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeviceInfoTab() {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Cihaz Bilgileri", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    HorizontalDivider()
+                    InfoRow("Marka:", "SOUTH")
+                    InfoRow("Model:", "ALPS2")
+                    InfoRow("Seri No:", "E600351920028")
+                    InfoRow("Firmware:", "v4.2.1")
+                    InfoRow("Donanım:", "v2.0")
+                    InfoRow("Anten Tipi:", "Helix")
+                    InfoRow("IMU:", "Aktif")
+                    InfoRow("Radyo:", "430-470 MHz")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccuracyInspectionTab() {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Doğruluk Kontrolü", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text("Eğim ölçümü ve direk kalibrasyonu", style = MaterialTheme.typography.bodyMedium)
+                    HorizontalDivider()
+
+                    Button(
+                        onClick = { /* Eğim Doğruluğu Testi */ },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Straighten, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Eğim Ölçümü Doğruluğu Testi")
+                    }
+
+                    OutlinedButton(
+                        onClick = { /* Direk Kalibrasyonu */ },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Height, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Direk Kalibrasyonu")
+                    }
+                }
+            }
+        }
+
+        item {
+            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Info, null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Kalibrasyon İpuçları", fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "• Eğim ölçümü testi: 0-60° arası 4 yönde test\n" +
+                        "• Direk kalibrasyonu: Düz zemin üzerinde yapılmalı\n" +
+                        "• IMU kalibrasyonu sonrası kontrol önerilir\n" +
+                        "• Her 6 ayda bir kontrol yapın",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SensorCalibrationTab() {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Sensör Kalibrasyonu", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text("IMU ve manyetik sensör kalibrasyonu", style = MaterialTheme.typography.bodyMedium)
+                    HorizontalDivider()
+
+                    Button(
+                        onClick = { /* IMU Kalibrasyonu */ },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Explore, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("IMU Sensör Kalibrasyonu")
+                    }
+
+                    OutlinedButton(
+                        onClick = { /* Manyetik Tarama */ },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Explore, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Manyetik Alan Taraması")
+                    }
+                }
+            }
+        }
+
+        item {
+            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.error)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Önemli Uyarı", fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "• Kalibrasyon sırasında cihazı manyetik alanlardan uzak tutun\n" +
+                        "• Metal objelerden ve elektrik hatlarından uzaklaşın\n" +
+                        "• Kalibrasyonu açık alanda yapın\n" +
+                        "• Ekran talimatlarını dikkatle takip edin",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RadioSettingsTab() {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Radyo Ayarları", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text("İç radyo modem yapılandırması", style = MaterialTheme.typography.bodyMedium)
+                    HorizontalDivider()
+
+                    var frequency by remember { mutableStateOf("450.000") }
+                    var power by remember { mutableStateOf("1W") }
+                    var dataRate by remember { mutableStateOf("19200") }
+
+                    OutlinedTextField(
+                        value = frequency,
+                        onValueChange = { frequency = it },
+                        label = { Text("Frekans (MHz)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    var powerExpanded by remember { mutableStateOf(false) }
+                    ExposedDropdownMenuBox(
+                        expanded = powerExpanded,
+                        onExpandedChange = { powerExpanded = !powerExpanded }
+                    ) {
+                        OutlinedTextField(
+                            value = power,
+                            onValueChange = { },
+                            readOnly = true,
+                            label = { Text("Güç") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = powerExpanded) },
+                            modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                        )
+                        ExposedDropdownMenu(expanded = powerExpanded, onDismissRequest = { powerExpanded = false }) {
+                            listOf("0.1W", "0.5W", "1W", "2W").forEach { p ->
+                                DropdownMenuItem(
+                                    text = { Text(p) },
+                                    onClick = { power = p; powerExpanded = false }
+                                )
+                            }
+                        }
+                    }
+
+                    var dataRateExpanded by remember { mutableStateOf(false) }
+                    ExposedDropdownMenuBox(
+                        expanded = dataRateExpanded,
+                        onExpandedChange = { dataRateExpanded = !dataRateExpanded }
+                    ) {
+                        OutlinedTextField(
+                            value = dataRate,
+                            onValueChange = { },
+                            readOnly = true,
+                            label = { Text("Veri Hızı (bps)") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dataRateExpanded) },
+                            modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                        )
+                        ExposedDropdownMenu(expanded = dataRateExpanded, onDismissRequest = { dataRateExpanded = false }) {
+                            listOf("4800", "9600", "19200", "38400").forEach { rate ->
+                                DropdownMenuItem(
+                                    text = { Text(rate) },
+                                    onClick = { dataRate = rate; dataRateExpanded = false }
+                                )
+                            }
+                        }
+                    }
+
+                    Button(
+                        onClick = { /* Ayarları Uygula */ },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Check, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Ayarları Uygula")
+                    }
+                }
+            }
+        }
+
+        item {
+            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Info, null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Radyo Ayarları Hakkında", fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "• Frekans aralığı: 430-470 MHz\n" +
+                        "• Sabit ve gezici aynı frekansta olmalı\n" +
+                        "• Menzil: 1W için ~3km, 2W için ~5km\n" +
+                        "• RTCM3.2 için 19200 bps önerilir",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InfoRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -598,15 +1190,46 @@ private fun BluetoothDeviceCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(Modifier.weight(1f)) {
-                Text(device.name, fontWeight = FontWeight.Bold)
-                Text(device.mac, style = MaterialTheme.typography.bodySmall)
-                Text(device.status, style = MaterialTheme.typography.labelSmall)
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    Icons.Default.Bluetooth,
+                    contentDescription = null,
+                    tint = if (isConnected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                )
+                Column {
+                    Text(
+                        text = device.name,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        text = device.mac,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (device.status == "Paired") {
+                        AssistChip(
+                            onClick = { },
+                            label = { Text("Eşleştirilmiş", style = MaterialTheme.typography.labelSmall) },
+                            modifier = Modifier.height(24.dp)
+                        )
+                    }
+                }
             }
-            Column(horizontalAlignment = Alignment.End) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = onSelectOnly) { Text("Seç") }
-                    TextButton(onClick = onConnect) { Text(if (isConnected) "Kes" else "Bağlan") }
+
+            if (isConnected) {
+                Icon(
+                    Icons.Default.CheckCircle,
+                    contentDescription = "Bağlı",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            } else {
+                IconButton(onClick = onConnect) {
+                    Icon(Icons.Default.Link, "Bağlan")
                 }
             }
         }

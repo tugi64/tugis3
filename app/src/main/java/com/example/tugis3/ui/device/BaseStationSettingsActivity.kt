@@ -129,7 +129,7 @@ fun BaseStationSettingsScreen(onBackPressed: () -> Unit) {
                                     readOnly = true,
                                     label = { Text("Başlangıç Modu") },
                                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = startupExpanded) },
-                                    modifier = Modifier.menuAnchor()
+                                    modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                                 )
                                 ExposedDropdownMenu(
                                     expanded = startupExpanded,
@@ -159,9 +159,9 @@ fun BaseStationSettingsScreen(onBackPressed: () -> Unit) {
                                 value = rtkDataFormat,
                                 onValueChange = { },
                                 readOnly = true,
-                                label = { Text("RTK Veri Formatı") },
+                                label = { Text("Veri Formatı") },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = formatExpanded) },
-                                modifier = Modifier.fillMaxWidth().menuAnchor()
+                                modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                             )
                             ExposedDropdownMenu(
                                 expanded = formatExpanded,
@@ -223,9 +223,9 @@ fun BaseStationSettingsScreen(onBackPressed: () -> Unit) {
                                         value = staticInterval,
                                         onValueChange = { },
                                         readOnly = true,
-                                        label = { Text("Toplama Aralığı") },
+                                        label = { Text("Örnekleme") },
                                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = intervalExpanded) },
-                                        modifier = Modifier.menuAnchor()
+                                        modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                                     )
                                     ExposedDropdownMenu(
                                         expanded = intervalExpanded,
@@ -264,9 +264,9 @@ fun BaseStationSettingsScreen(onBackPressed: () -> Unit) {
                                     value = coordinateType,
                                     onValueChange = { },
                                     readOnly = true,
-                                    label = { Text("Koordinat Türü") },
+                                    label = { Text("Koordinat Tipi") },
                                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = coordTypeExpanded) },
-                                    modifier = Modifier.fillMaxWidth().menuAnchor()
+                                    modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                                 )
                                 ExposedDropdownMenu(
                                     expanded = coordTypeExpanded,
@@ -368,9 +368,9 @@ fun BaseStationSettingsScreen(onBackPressed: () -> Unit) {
                                 value = antennaMeasureType,
                                 onValueChange = { },
                                 readOnly = true,
-                                label = { Text("Anten Ölçüm Türü") },
+                                label = { Text("Ölçüm Tipi") },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = measureTypeExpanded) },
-                                modifier = Modifier.fillMaxWidth().menuAnchor()
+                                modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                             )
                             ExposedDropdownMenu(
                                 expanded = measureTypeExpanded,
@@ -425,7 +425,7 @@ fun BaseStationSettingsScreen(onBackPressed: () -> Unit) {
                                 readOnly = true,
                                 label = { Text("Veri Bağlantısı") },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dataLinkExpanded) },
-                                modifier = Modifier.fillMaxWidth().menuAnchor()
+                                modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                             )
                             ExposedDropdownMenu(
                                 expanded = dataLinkExpanded,

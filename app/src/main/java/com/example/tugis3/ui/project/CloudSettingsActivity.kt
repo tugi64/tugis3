@@ -4,9 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -15,19 +13,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.tugis3.ui.theme.Tugis3Theme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @AndroidEntryPoint
 class CloudSettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             Tugis3Theme {
-                CloudSettingsScreen(onBackPressed = { finish() })
+                CloudSettingsScreen(onBack = { finish() })
             }
         }
     }
@@ -35,262 +32,350 @@ class CloudSettingsActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CloudSettingsScreen(onBackPressed: () -> Unit) {
-    var serverUrl by remember { mutableStateOf("https://cloud.survstar.com") }
+private fun CloudSettingsScreen(onBack: () -> Unit) {
+    var useCloud by remember { mutableStateOf(false) }
+    var serverUrl by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var isConnected by remember { mutableStateOf(false) }
-    var autoSync by remember { mutableStateOf(true) }
-    var syncInterval by remember { mutableStateOf("5") }
-    var compressData by remember { mutableStateOf(true) }
+    var autoSync by remember { mutableStateOf(false) }
+    var syncInterval by remember { mutableStateOf("15") }
+
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Bulut Ayarları") },
                 navigationIcon = {
-                    IconButton(onClick = onBackPressed) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Geri")
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Geri")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                )
             )
-        }
-    ) { paddingValues ->
-        Column(
+        },
+        snackbarHost = { SnackbarHost(snackbar) }
+    ) { padding ->
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
+                .padding(padding)
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Bağlantı Durumu
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = if (isConnected)
-                        MaterialTheme.colorScheme.primaryContainer
-                    else MaterialTheme.colorScheme.errorContainer
-                )
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        if (isConnected) Icons.Default.CloudDone else Icons.Default.CloudOff,
-                        contentDescription = null,
-                        modifier = Modifier.size(32.dp)
+            // Bulut Kullanımı
+            item {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (useCloud)
+                            MaterialTheme.colorScheme.primaryContainer
+                        else
+                            MaterialTheme.colorScheme.surfaceVariant
                     )
-                    Column {
-                        Text(
-                            "Bulut Bağlantısı",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            if (isConnected) "Bağlı" else "Bağlantı Yok",
-                            style = MaterialTheme.typography.bodyMedium
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Bulut Hizmeti Kullan",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                "Veri senkronizasyonu ve koordinat paylaşımı",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = useCloud,
+                            onCheckedChange = { useCloud = it }
                         )
                     }
                 }
             }
 
-            // Sunucu Ayarları
-            Card {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
+            if (useCloud) {
+                // Sunucu Bilgileri
+                item {
                     Text(
-                        "Sunucu Ayarları",
+                        "Sunucu Bilgileri",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
+                }
 
+                item {
                     OutlinedTextField(
                         value = serverUrl,
                         onValueChange = { serverUrl = it },
                         label = { Text("Sunucu URL") },
+                        placeholder = { Text("https://cloud.example.com") },
+                        leadingIcon = { Icon(Icons.Filled.Cloud, null) },
                         modifier = Modifier.fillMaxWidth(),
-                        leadingIcon = { Icon(Icons.Default.Cloud, null) },
-                        placeholder = { Text("https://cloud.survstar.com") }
+                        singleLine = true
                     )
+                }
 
+                item {
                     OutlinedTextField(
                         value = username,
                         onValueChange = { username = it },
                         label = { Text("Kullanıcı Adı") },
+                        placeholder = { Text("kullanici@example.com") },
+                        leadingIcon = { Icon(Icons.Filled.Person, null) },
                         modifier = Modifier.fillMaxWidth(),
-                        leadingIcon = { Icon(Icons.Default.Person, null) }
+                        singleLine = true
                     )
+                }
 
+                item {
                     OutlinedTextField(
                         value = password,
                         onValueChange = { password = it },
                         label = { Text("Şifre") },
+                        placeholder = { Text("••••••••") },
+                        leadingIcon = { Icon(Icons.Filled.Lock, null) },
                         modifier = Modifier.fillMaxWidth(),
-                        leadingIcon = { Icon(Icons.Default.Lock, null) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+                        singleLine = true
                     )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = {
-                                // Test connection
-                                isConnected = username.isNotEmpty() && password.isNotEmpty()
-                            },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("Bağlantıyı Test Et")
-                        }
-
-                        Button(
-                            onClick = {
-                                // Save settings
-                                isConnected = username.isNotEmpty() && password.isNotEmpty()
-                            },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("Kaydet")
-                        }
-                    }
                 }
-            }
 
-            // Senkronizasyon Ayarları
-            Card {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
+                // Senkronizasyon Ayarları
+                item {
+                    HorizontalDivider()
+                    Spacer(Modifier.height(8.dp))
                     Text(
                         "Senkronizasyon Ayarları",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
+                }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Otomatik Senkronizasyon")
-                        Switch(
-                            checked = autoSync,
-                            onCheckedChange = { autoSync = it }
-                        )
+                item {
+                    Card {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Otomatik Senkronizasyon")
+                                Text(
+                                    "Belirli aralıklarla otomatik sync",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = autoSync,
+                                onCheckedChange = { autoSync = it }
+                            )
+                        }
                     }
+                }
 
-                    if (autoSync) {
+                if (autoSync) {
+                    item {
                         OutlinedTextField(
                             value = syncInterval,
                             onValueChange = { syncInterval = it },
                             label = { Text("Senkronizasyon Aralığı (dakika)") },
+                            placeholder = { Text("15") },
+                            leadingIcon = { Icon(Icons.Filled.Timer, null) },
                             modifier = Modifier.fillMaxWidth(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            leadingIcon = { Icon(Icons.Default.Timer, null) }
-                        )
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Veri Sıkıştırma")
-                        Switch(
-                            checked = compressData,
-                            onCheckedChange = { compressData = it }
+                            singleLine = true
                         )
                     }
                 }
-            }
 
-            // Manuel Senkronizasyon
-            Card {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
+                // Bulut Özellikleri
+                item {
+                    HorizontalDivider()
+                    Spacer(Modifier.height(8.dp))
                     Text(
-                        "Manuel İşlemler",
+                        "Bulut Özellikleri",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
+                }
 
+                item {
+                    Card {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            CloudFeatureItem(
+                                Icons.Filled.CloudUpload,
+                                "Koordinat Sistemi Paylaşımı",
+                                "Koordinat parametrelerini buluttan kullan"
+                            )
+                            HorizontalDivider()
+                            CloudFeatureItem(
+                                Icons.Filled.Sync,
+                                "Proje Senkronizasyonu",
+                                "Projelerinizi birden fazla cihazda kullanın"
+                            )
+                            HorizontalDivider()
+                            CloudFeatureItem(
+                                Icons.Filled.Backup,
+                                "Otomatik Yedekleme",
+                                "Verileriniz güvenle bulutta saklanır"
+                            )
+                            HorizontalDivider()
+                            CloudFeatureItem(
+                                Icons.Filled.People,
+                                "Takım Çalışması",
+                                "Ekip üyeleriyle veri paylaşımı"
+                            )
+                        }
+                    }
+                }
+
+                // Bağlantı Test Butonu
+                item {
                     Button(
-                        onClick = { /* Upload data */ },
+                        onClick = {
+                            scope.launch {
+                                snackbar.showSnackbar("Sunucu bağlantısı test ediliyor...")
+                            }
+                        },
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = isConnected
+                        enabled = serverUrl.isNotBlank() && username.isNotBlank()
                     ) {
-                        Icon(Icons.Default.CloudUpload, null, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Filled.CloudDone, null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Verileri Yükle")
+                        Text("Bağlantıyı Test Et")
                     }
+                }
 
-                    OutlinedButton(
-                        onClick = { /* Download data */ },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = isConnected
+                // Kaydet Butonu
+                item {
+                    FilledTonalButton(
+                        onClick = {
+                            scope.launch {
+                                snackbar.showSnackbar("Bulut ayarları kaydedildi")
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(Icons.Default.CloudDownload, null, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Filled.Save, null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Verileri İndir")
+                        Text("Ayarları Kaydet")
+                    }
+                }
+            } else {
+                // Bulut Kapalı Bilgi
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Icon(
+                                Icons.Filled.CloudOff,
+                                null,
+                                modifier = Modifier.size(64.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                "Bulut Hizmeti Kapalı",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                "Bulut özelliklerini kullanmak için yukarıdaki anahtarı açın",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
 
-            // Son Senkronizasyon Bilgisi
-            Card {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        "Senkronizasyon Geçmişi",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+            // Bilgi Notu
+            item {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer
                     )
-
+                ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text("Son Yükleme:")
-                        Text("15.12.2024 14:30")
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Son İndirme:")
-                        Text("15.12.2024 09:15")
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Yüklenen Nokta:")
-                        Text("127 nokta")
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("İndirilen Nokta:")
-                        Text("45 nokta")
+                        Icon(
+                            Icons.Filled.Info,
+                            null,
+                            tint = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                        Column {
+                            Text(
+                                "Özelleştirilmiş Özellik",
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                            Text(
+                                "Bu özellik özelleştirilebilir. Gerekirse bizimle iletişime geçin.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                        }
                     }
                 }
             }
         }
     }
 }
+
+@Composable
+private fun CloudFeatureItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    description: String
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            icon,
+            null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(24.dp)
+        )
+        Column {
+            Text(title, fontWeight = FontWeight.Medium)
+            Text(
+                description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+

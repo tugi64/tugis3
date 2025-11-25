@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "com.example.tugis3.core.ui"
-    compileSdk = 36
+    compileSdk = 35
 
     defaultConfig {
         minSdk = 24
@@ -40,3 +40,11 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     testImplementation(libs.junit)
 }
+
+// IDE uyumluluğu için testClasses task alias'ı ekle
+tasks.register("testClasses") {
+    group = "build"
+    description = "Alias for IDE compatibility - compiles test classes"
+    dependsOn("compileDebugUnitTestKotlin")
+}
+

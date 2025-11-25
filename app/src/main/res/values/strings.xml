@@ -2,4 +2,38 @@
     <string name="app_name">tugis3</string>
     <!-- Google Maps API Key -->
     <string name="google_maps_key">AIzaSyBF49PySnhzZlZ3ZoR3fNiC9WP3Zp4JWRY</string>
+
+    <!-- Device Fragment -->
+    <string name="device">Cihaz</string>
+    <string name="communication">İletişim</string>
+    <string name="connection_status_disconnected">Bağlantı Durumu: Bağlı Değil</string>
+    <string name="connect_to_device">Cihaza Bağlan</string>
+    <string name="rover_mode">Gezici Modu</string>
+    <string name="rover_settings">Gezici Ayarları</string>
+    <string name="base_mode">Sabit Modu</string>
+    <string name="base_settings">Sabit Ayarları</string>
+    <string name="static_mode">Statik Modu</string>
+    <string name="static_settings">Statik Ayarları</string>
+    <string name="device_info">Cihaz Bilgileri</string>
+    <string name="view_device_info">Cihaz Bilgilerini Görüntüle</string>
+
+    <!-- Project Fragment -->
+    <string name="project">Proje</string>
+    <string name="project_manager">Proje Yöneticisi</string>
+    <string name="manage_project">Proje Yönet</string>
+    <string name="coordinate_system">Koordinat Sistemi</string>
+    <string name="set_coordinate_system">Koordinat Sistemi Ayarla</string>
+    <string name="point_calibration">Nokta Kalibrasyonu</string>
+    <string name="calibrate">Kalibrasyon Yap</string>
+    <string name="point_database">Nokta Veritabanı</string>
+    <string name="export_file">Dosya Dışa Aktar</string>
+    <string name="import_file">Dosya İçe Aktar</string>
+
+    <!-- Bluetooth Fragment -->
+    <string name="bluetooth_list">Bluetooth cihazlarını listele</string>
+    <string name="connection_status_connected">Bağlantı Durumu: Bağlı &#10003;</string>
+    <string name="bluetooth_not_supported">Bluetooth desteklenmiyor</string>
+    <string name="bluetooth_enable_msg">Enable Bluetooth</string>
+    <string name="bluetooth_connected">GNSS Cihazına başarıyla bağlandı</string>
+    <string name="bluetooth_disconnected">Bağlantı kesildi</string>
 </resources>

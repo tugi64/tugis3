@@ -214,7 +214,7 @@ class NtripProfilesViewModel @Inject constructor(
 
     fun save(ui: NtripProfileUi) = viewModelScope.launch {
         val id = repo.upsert(ui.toEntity())
-        if (ui.autoConnect) repo.setAutoConnect(ui.copy(id = id, autoConnect = true).toEntity())
+        if (ui.autoConnect) repo.setAutoConnect(id)
     }
 
     fun delete(ui: NtripProfileUi) = viewModelScope.launch {
@@ -225,8 +225,8 @@ class NtripProfilesViewModel @Inject constructor(
     fun toggleAuto(ui: NtripProfileUi) = viewModelScope.launch {
         val newState = !ui.autoConnect
         if (newState) {
-            repo.setAutoConnect(ui.copy(autoConnect = true).toEntity())
-            repo.upsert(ui.copy(autoConnect = true).toEntity())
+            val id = repo.upsert(ui.copy(autoConnect = true).toEntity())
+            repo.setAutoConnect(id)
         } else {
             repo.upsert(ui.copy(autoConnect = false).toEntity())
         }

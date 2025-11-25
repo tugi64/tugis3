@@ -1,4 +1,4 @@
-package com.example.tugis3.data.repository._removed
+// DEPRECATED: Bu dosya artık kullanılmıyor
+// core:data modülündeki PointRepository kullanılmalıdır
+// Bu dosya silinebilir
 
-// Bu dosya kaldırıldı. Gerçek PointRepository core:data modülünde bulunuyor.
-// Derleyici çakışmasını önlemek için paket adı değiştirildi.

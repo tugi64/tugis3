@@ -7,42 +7,52 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
-    
-    <!-- Konum İzinleri -->
+
+    <!-- Konum İzinleri (GNSS için gerekli) -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
-    
+    <!-- Android 14+ foreground location servis tipi -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+
     <!-- Bluetooth İzinleri -->
-    <uses-permission android:name="android.permission.BLUETOOTH" />
-    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <!-- Android 12+ (API 31+) için yeni izinler -->
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    
-    <!-- Dosya İzinleri -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
-    
-    <!-- Kamera İzinleri -->
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+
+    <!-- Android 11 ve öncesi (API 30-) için eski izinler -->
+    <uses-permission android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+
+    <!-- Kamera İzni -->
     <uses-permission android:name="android.permission.CAMERA" />
-    
+
     <!-- Diğer İzinler -->
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    
-    <!-- Özellikler -->
-    <uses-feature
-        android:name="android.hardware.location.gps"
-        android:required="true" />
-    <uses-feature
-        android:name="android.hardware.bluetooth_le"
-        android:required="false" />
-    <uses-feature
-        android:name="android.hardware.camera"
-        android:required="false" />
+
+    <!-- Dosya İzinleri -->
+    <!-- Android 12 ve altı için -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32"
+        tools:ignore="ScopedStorage" />
+
+    <!-- Android 13+ için özel media izinleri -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+
+    <!-- Kaldırılan eski / gereksiz izinler:
+         * READ_EXTERNAL_STORAGE / WRITE_EXTERNAL_STORAGE / MANAGE_EXTERNAL_STORAGE (scoped storage kullanılıyor)
+         * BLUETOOTH / BLUETOOTH_ADMIN (yerine SCAN & CONNECT mevcut)
+    -->
 
     <application
         android:name=".Tugis3Application"
@@ -60,11 +70,19 @@
         <!-- Google Maps API Key -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="@string/google_maps_key" />
+            android:value="AIzaSyBF49PySnhzZlZ3ZoR3fNiC9WP3Zp4JWRY" />
 
         <!-- CAD Aplikasyon Activity -->
         <activity
             android:name=".ui.cad.CadApplicationActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+
+
+        <!-- Nokta Aplikasyon Activity -->
+        <activity
+            android:name=".ui.survey.StakeoutActivity"
             android:exported="false"
             android:theme="@style/Theme.Tugis3"
             android:launchMode="singleTop" />
@@ -94,6 +112,11 @@
             android:launchMode="singleTop" />
         <activity
             android:name=".ui.survey.MainSurveyActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+        <activity
+            android:name=".ui.survey.PointSurveyActivity"
             android:exported="false"
             android:theme="@style/Theme.Tugis3"
             android:launchMode="singleTop" />
@@ -142,7 +165,50 @@
             android:launchMode="singleTop" />
 
         <activity
+            android:name=".ui.project.PointDatabaseActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+
+        <activity
+            android:name=".ui.project.CalibrationActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+
+        <activity
             android:name=".ui.common.PlaceholderActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+
+        <!-- Device (Cihaz) Activities -->
+        <activity
+            android:name=".ui.device.RoverSettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+        <activity
+            android:name=".ui.device.BaseSettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+        <activity
+            android:name=".ui.device.StaticSettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+
+        <!-- CORS/NTRIP Ayarları -->
+        <activity
+            android:name=".ui.settings.CorsConfigurationActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+
+        <!-- Bluetooth Settings -->
+        <activity
+            android:name=".ui.device.BluetoothSettingsActivityNew"
             android:exported="false"
             android:theme="@style/Theme.Tugis3"
             android:launchMode="singleTop" />
@@ -184,6 +250,100 @@
             android:theme="@style/Theme.Tugis3"
             android:launchMode="singleTop" />
         <activity
+            android:name=".ui.tools.LocalTransformationActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+        <activity
+            android:name=".ui.tools.AngleConverterActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+        <activity
+            android:name=".ui.tools.ConversionAreaActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+        <activity
+            android:name=".ui.tools.CogoActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+        <activity
+            android:name=".ui.tools.CalculationActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+        <activity
+            android:name=".ui.tools.ExternalRadioActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+        <activity
+            android:name=".ui.tools.StationRenewalActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+
+        <!-- Project Activities -->
+        <activity
+            android:name=".ui.project.SurveyManagementActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+        <activity
+            android:name=".ui.project.ProjectInfoActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+        <activity
+            android:name=".ui.project.DataTransferActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+
+        <!-- Device Activities -->
+        <activity
+            android:name=".ui.device.DeviceSettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+        <activity
+            android:name=".ui.device.CommunicationActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+        <activity
+            android:name=".ui.device.BaseStationActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+        <activity
+            android:name=".ui.device.RoverStationActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+        <activity
+            android:name=".ui.device.MeasuringDeviceActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+
+        <!-- Survey Activities -->
+        <activity
+            android:name=".ui.survey.PrecisionPlanActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+
+        <!-- Settings Activities -->
+        <activity
+            android:name=".ui.settings.CrosshairSettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+
+        <activity
             android:name=".ntrip.NtripProfilesActivity"
             android:exported="false"
             android:label="NTRIP Profilleri" />
@@ -196,7 +356,8 @@
         <service
             android:name=".service.GnssService"
             android:enabled="true"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="location" />
 
         <service
             android:name=".service.NtripService"
@@ -241,9 +402,7 @@
         </provider>
 
         <!-- Survey Alt Özellik Activity'leri -->
-        <activity android:name=".ui.survey.PointSurveyActivity" android:exported="false" android:theme="@style/Theme.Tugis3" android:launchMode="singleTop" />
         <activity android:name=".ui.survey.PointStakeoutActivity" android:exported="false" android:theme="@style/Theme.Tugis3" android:launchMode="singleTop" />
-        <activity android:name=".ui.survey.LineStakeoutActivity" android:exported="false" android:theme="@style/Theme.Tugis3" android:launchMode="singleTop" />
         <activity android:name=".ui.survey.RoadStakeoutActivity" android:exported="false" android:theme="@style/Theme.Tugis3" android:launchMode="singleTop" />
         <activity android:name=".ui.survey.DetailSurveyActivity" android:exported="false" android:theme="@style/Theme.Tugis3" android:launchMode="singleTop" />
         <activity android:name=".ui.survey.StaticSurveyActivity" android:exported="false" android:theme="@style/Theme.Tugis3" android:launchMode="singleTop" />
@@ -257,6 +416,13 @@
         <activity android:name=".ui.survey.CrossSectionMeasurementActivity" android:exported="false" android:theme="@style/Theme.Tugis3" android:launchMode="singleTop" />
         <activity android:name=".ui.survey.SurveyRangeActivity" android:exported="false" android:theme="@style/Theme.Tugis3" android:launchMode="singleTop" />
 
+        <!-- Aplikasyon Activity -->
+        <activity
+            android:name=".ui.project.AplikasyonActivity"
+            android:exported="false"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar"
+            android:launchMode="singleTop" />
+
         <activity
             android:name=".ui.project.CloudSettingsActivity"
             android:exported="false"
@@ -269,11 +435,6 @@
             android:launchMode="singleTop" />
         <activity
             android:name=".ui.project.SoftwareUpdateActivity"
-            android:exported="false"
-            android:theme="@style/Theme.Tugis3"
-            android:launchMode="singleTop" />
-        <activity
-            android:name=".ui.device.RoverSettingsActivity"
             android:exported="false"
             android:theme="@style/Theme.Tugis3"
             android:launchMode="singleTop" />
@@ -297,6 +458,39 @@
             android:exported="false"
             android:theme="@style/Theme.Tugis3"
             android:launchMode="singleTop" />
+
+        <!-- Device ekranındaki aktiviteler -->
+        <activity
+            android:name=".ui.device.BluetoothSettingsActivityNew"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+        <activity
+            android:name=".ui.device.FixedPointActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+        <activity
+            android:name=".ui.device.StaticStatusActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+        <activity
+            android:name=".ui.device.CurrentLocationActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+        <activity
+            android:name=".ui.device.QuickModuleActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+        <activity
+            android:name=".ui.device.SensorCalibrationActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+
         <!-- EKLENEN: Eksik olan Barcode ve GNSS Monitor activity tanımları -->
         <activity
             android:name=".ui.project.BarcodeActivity"
@@ -366,6 +560,38 @@
             android:theme="@style/Theme.Tugis3"
             android:launchMode="singleTop" />
 
+        <!-- Tools (com.tools) paketindeki eski/yardımcı ekranlar -->
+        <activity
+            android:name="com.tools.ToolsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+        <activity
+            android:name="com.tools.FTPShareActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+        <activity
+            android:name="com.tools.FileShareActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+        <activity
+            android:name="com.tools.PostProcessPointsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+
+        <!-- Analysis Activities -->
+        <activity
+            android:name=".ui.analysis.MeasurementAnalysisActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Tugis3"
+            android:launchMode="singleTop" />
+
+        <!-- KALDIRILDI: Aşağıdaki aktiviteler gerçek sınıf dosyaları olmadığı için kaldırılıyor -->
+        <!-- SurveyManagementActivity, DeviceSettingsActivity, DataTransferActivity, ProjectInfoActivity -->
+        <!-- CommunicationActivity, BaseStationActivity, RoverStationActivity, MeasuringDeviceActivity -->
     </application>
 
 </manifest>

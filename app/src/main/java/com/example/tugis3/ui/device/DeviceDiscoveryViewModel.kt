@@ -1,9 +1,10 @@
 package com.example.tugis3.ui.device
 
 import android.annotation.SuppressLint
+import android.app.Application
 import android.bluetooth.BluetoothDevice
 import android.content.Context
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.tugis3.bluetooth.BluetoothGnssManager
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,8 +15,8 @@ import kotlinx.coroutines.launch
 /**
  * Sadece discovery (tarama) ve eşleştirme mantığını örnekleyen hafif ViewModel.
  */
-class DeviceDiscoveryViewModel : ViewModel() {
-    private val bt = BluetoothGnssManager()
+class DeviceDiscoveryViewModel(application: Application) : AndroidViewModel(application) {
+    private val bt = BluetoothGnssManager(application.applicationContext)
     private val devicesMap = mutableMapOf<String, BluetoothDevice>()
 
     data class UiDevice(val mac: String, val name: String, val bonded: Boolean)
@@ -34,26 +35,44 @@ class DeviceDiscoveryViewModel : ViewModel() {
     @SuppressLint("MissingPermission")
     fun start(context: Context) {
         if (_scanning.value) return
-        if (!bt.isBluetoothSupported()) { log("Destek yok"); return }
-        if (!bt.isEnabled()) { log("Bluetooth kapalı"); return }
+        val adapter = bt.bluetoothAdapter
+        if (adapter == null) { log("Destek yok"); return }
+        if (!adapter.isEnabled) { log("Bluetooth kapalı"); return }
         _scanning.value = true
         devicesMap.clear(); _devices.value = emptyList()
-        bt.startScan(context, object : BluetoothGnssManager.ScanCallback {
-            override fun onDeviceFound(device: BluetoothDevice) { add(device) }
-            override fun onFinished() { _scanning.value = false; log("Tarama bitti") }
-            override fun onError(message: String) { _scanning.value = false; log("Hata: $message") }
-        })
+        try {
+            bt.startDiscovery()
+            log("Tarama başlatıldı")
+        } catch (e: Exception) {
+            _scanning.value = false
+            log("Hata: ${e.message}")
+        }
     }
 
-    fun stop(context: Context) { if (_scanning.value) bt.stopScan(context) }
+    fun stop(context: Context) {
+        if (_scanning.value) {
+            try {
+                bt.stopDiscovery()
+                _scanning.value = false
+            } catch (e: Exception) {
+                log("Durdurma hatası: ${e.message}")
+            }
+        }
+    }
 
     @SuppressLint("MissingPermission")
     fun pair(mac: String) {
         val d = devicesMap[mac] ?: return
         val bonded = try { d.bondState == BluetoothDevice.BOND_BONDED } catch (se: SecurityException) { false }
         if (bonded) { log("Zaten eşleşmiş"); return }
-        val ok = bt.pairDevice(d)
-        log(if (ok) "Eşleştirme isteği gönderildi" else "Eşleştirme isteği başarısız")
+        try {
+            val ok = d.createBond()
+            log(if (ok) "Eşleştirme isteği gönderildi" else "Eşleştirme isteği başarısız")
+        } catch (e: SecurityException) {
+            log("İzin hatası: ${e.message}")
+        } catch (e: Exception) {
+            log("Eşleştirme hatası: ${e.message}")
+        }
     }
 
     @SuppressLint("MissingPermission")

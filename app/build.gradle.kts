@@ -4,57 +4,34 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
-    // Firebase pluginleri koşullu uygulanacak, burada kaldırıldı.
-}
-
-// Firebase pluginlerini yalnızca google-services.json varsa uygula
-if (file("google-services.json").exists()) {
-    apply(plugin = "com.google.gms.google-services")
-    apply(plugin = "com.google.firebase.crashlytics")
-} else {
-    logger.lifecycle("[INFO] google-services.json bulunamadı -> Firebase (Crashlytics & Analytics plugin) atlandı. Sadece bağımlılıklar yüklü fakat plugin task'ları oluşmayacak.")
-}
-
-// İsteğe bağlı: Debug amaçlı placeholder oluşturma (manuel çağırma)
-tasks.register("createFirebasePlaceholder") {
-    group = "firebase"
-    description = "Geçici, üretim dışı bir google-services.json placeholder dosyası oluşturur."
-    doLast {
-        val f = file("google-services.json")
-        if (f.exists()) {
-            println("google-services.json zaten mevcut, işlem yapılmadı.")
-        } else {
-            f.writeText("""{
-  \"project_info\": {\"project_number\": \"0\",\"firebase_url\": \"https://placeholder.firebaseio.com\",\"project_id\": \"placeholder\",\"storage_bucket\": \"placeholder.appspot.com\"},
-  \"client\": [{
-    \"client_info\": {\"mobilesdk_app_id\": \"1:0:android:placeholder\",\"android_client_info\": {\"package_name\": \"com.example.tugis3\"}},
-    \"api_key\": [{\"current_key\": \"AI_placeholder_KEY\"}],
-    \"services\": {\"appinvite_service\": {\"other_platform_oauth_client\": []}}
-  }],
-  \"configuration_version\": \"1\"
-}""")
-            println("Placeholder google-services.json oluşturuldu (SADECE GELİŞTİRME İÇİN!)")
-        }
-    }
+    // Firebase: google-services.json eklendikten sonra etkinleştirin
+    // alias(libs.plugins.google.services)
+    // alias(libs.plugins.firebase.crashlytics)
 }
 
 android {
     namespace = "com.example.tugis3"
-    compileSdk = 36
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.example.tugis3"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
         // Hilt test runner
         testInstrumentationRunner = "com.example.tugis3.HiltTestRunner"
 
+        // MultiDex desteği - büyük APK'lar için
+        multiDexEnabled = true
+
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        // NDK abiFilters KALDIRILDI - Splits ile çakışıyor
+        // Split APK yapılandırması aşağıda tanımlı
     }
 
     buildTypes {
@@ -67,8 +44,29 @@ android {
             )
         }
         debug {
-            // Debug crashlytics upload devre dışı (isteğe bağlı)
-            // firebaseCrashlytics { mappingFileUploadEnabled = false }
+            // Debug build - HIZLI YÜKLEME MOD (Galaxy A21s için)
+            // Minify/Shrink KAPALI - derleme hızlı ama APK büyük (~80-100 MB)
+            isMinifyEnabled = false
+            isShrinkResources = false
+
+            // MultiDex optimizasyonu
+            multiDexEnabled = true
+
+            // Dex'i küçült (legacy multidex kullan)
+            multiDexKeepProguard = file("multidex-config.pro")
+
+            // Firebase etkinleştirildiğinde Crashlytics mapping ayarı buraya gelecek
+        }
+    }
+
+    // APK Split - Galaxy A21s için HIZLI YÜKLEME modu
+    // Universal APK = tek APK, tüm mimariler, hızlı yükleme
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a") // Sadece Galaxy A21s için
+            isUniversalApk = false
         }
     }
 
@@ -82,20 +80,46 @@ android {
     }
 
     buildFeatures {
+        viewBinding = true
         compose = true
     }
+
+    // NOT: installOptions deprecated - AGP 8.0+ ile kaldırıldı
+    // APK yüklemesi için zaman aşımı artık IDE/adb ayarlarından yapılmalı
+    // Android Studio -> Preferences -> Build -> APK Installation Timeout
+
 
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            // Gereksiz dosyaları çıkar - APK boyutunu küçült
+            excludes += "/META-INF/DEPENDENCIES"
+            excludes += "/META-INF/LICENSE"
+            excludes += "/META-INF/LICENSE.txt"
+            excludes += "/META-INF/license.txt"
+            excludes += "/META-INF/NOTICE"
+            excludes += "/META-INF/NOTICE.txt"
+            excludes += "/META-INF/notice.txt"
+            excludes += "/META-INF/ASL2.0"
+            excludes += "/META-INF/*.kotlin_module"
+        }
+        jniLibs {
+            useLegacyPackaging = false // Modern packaging kullan
         }
     }
+    buildToolsVersion = "35.0.0"
 }
 
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(17))
     }
+}
+
+repositories {
+    google()
+    mavenCentral()
+    // JitPack kaldırıldı: kullanılmıyor ve 401 hatasına neden oluyor
 }
 
 dependencies {
@@ -118,8 +142,8 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.material.icons.extended)
-    implementation("androidx.compose.foundation:foundation")
-    implementation("androidx.compose.runtime:runtime-saveable")
+    implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.compose.runtime.saveable)
 
     // Maps
     implementation(libs.play.services.maps)
@@ -151,10 +175,10 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.hilt.navigation.compose)
 
-    // Firebase (BOM)
-    implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.analytics)
-    implementation(libs.firebase.crashlytics)
+    // Firebase: google-services.json eklendikten sonra etkinleştirin
+    // implementation(platform(libs.firebase.bom))
+    // implementation(libs.firebase.analytics)
+    // implementation(libs.firebase.crashlytics)
 
     // LeakCanary (yalnızca debug)
     debugImplementation(libs.leakcanary)
@@ -177,11 +201,20 @@ dependencies {
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.core)
     implementation(libs.androidx.datastore.preferences)
-    implementation("com.google.android.material:material:1.12.0")
+    implementation(libs.google.material)
+    implementation("androidx.fragment:fragment-ktx:1.8.9")
+    // dxf-parser kaldırıldı: internal parser kullanılıyor ve JitPack 401 hatası veriyor
 }
 
+// KSP configuration
 ksp {
-    arg("room.schemaLocation", "${projectDir}/schemas")
     arg("dagger.fastInit", "enabled")
     arg("dagger.hilt.android.internal.disableAndroidSuperclassValidation", "true")
+}
+
+// IDE uyumluluğu için testClasses task alias'ı ekle
+tasks.register("testClasses") {
+    group = "build"
+    description = "Alias for IDE compatibility - compiles test classes"
+    dependsOn("compileDebugUnitTestKotlin")
 }

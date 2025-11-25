@@ -30,6 +30,14 @@ class PrefsRepository @Inject constructor(@ApplicationContext private val contex
         val LINE_NAME = stringPreferencesKey("line_name")
         val AUTO_PROJ = booleanPreferencesKey("auto_projection_enabled")
         val FAV_PROJECTIONS = stringPreferencesKey("fav_proj_defs") // ';' ile ayrılmış anahtar listesi
+        // Yeni: alet yüksekliği (metre)
+        val INSTR_HEIGHT = doublePreferencesKey("instrument_height_m")
+        // Yeni: Aplikasyon ekranı görünürlük/katman ayarları
+        val APP_SHOW_TOOLBAR = booleanPreferencesKey("app_show_toolbar")
+        val APP_SHOW_INFOBAR = booleanPreferencesKey("app_show_infobar")
+        val LAYER_POINTS = booleanPreferencesKey("layer_points_visible")
+        val LAYER_LABELS = booleanPreferencesKey("layer_labels_visible")
+        val LAYER_TRACK = booleanPreferencesKey("layer_gnss_track_visible")
     }
 
     val cogoTab: Flow<Int> = context.dataStore.data.map { it[Keys.COGO_TAB] ?: 0 }
@@ -87,4 +95,21 @@ class PrefsRepository @Inject constructor(@ApplicationContext private val contex
         if (!cur.add(key)) cur.remove(key)
         if (cur.isEmpty()) prefs.remove(Keys.FAV_PROJECTIONS) else prefs[Keys.FAV_PROJECTIONS] = cur.joinToString(";")
     }
+
+    // --- Alet yüksekliği ---
+    val instrumentHeight: Flow<Double> = context.dataStore.data.map { it[Keys.INSTR_HEIGHT] ?: 0.0 }
+    suspend fun setInstrumentHeight(v: Double) = context.dataStore.edit { it[Keys.INSTR_HEIGHT] = v }
+
+    // --- Aplikasyon ekranı görünürlük/katman ayarları ---
+    val appShowToolbar: Flow<Boolean> = context.dataStore.data.map { it[Keys.APP_SHOW_TOOLBAR] ?: true }
+    val appShowInfoBar: Flow<Boolean> = context.dataStore.data.map { it[Keys.APP_SHOW_INFOBAR] ?: true }
+    suspend fun setAppShowToolbar(v:Boolean) = context.dataStore.edit { it[Keys.APP_SHOW_TOOLBAR] = v }
+    suspend fun setAppShowInfoBar(v:Boolean) = context.dataStore.edit { it[Keys.APP_SHOW_INFOBAR] = v }
+
+    val layerPointsVisible: Flow<Boolean> = context.dataStore.data.map { it[Keys.LAYER_POINTS] ?: true }
+    val layerLabelsVisible: Flow<Boolean> = context.dataStore.data.map { it[Keys.LAYER_LABELS] ?: false }
+    val layerTrackVisible: Flow<Boolean> = context.dataStore.data.map { it[Keys.LAYER_TRACK] ?: false }
+    suspend fun setLayerPointsVisible(v:Boolean) = context.dataStore.edit { it[Keys.LAYER_POINTS] = v }
+    suspend fun setLayerLabelsVisible(v:Boolean) = context.dataStore.edit { it[Keys.LAYER_LABELS] = v }
+    suspend fun setLayerTrackVisible(v:Boolean) = context.dataStore.edit { it[Keys.LAYER_TRACK] = v }
 }

@@ -17,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -37,8 +38,8 @@ class PointListActivity : ComponentActivity() {
     }
 }
 
-@Composable
 @OptIn(ExperimentalMaterial3Api::class)
+@Composable
 fun PointListScreen(vm: PointListViewModel = hiltViewModel()) {
     val active by vm.activeProject.collectAsState()
     val filtered by vm.filtered.collectAsState()
@@ -71,6 +72,8 @@ fun PointListScreen(vm: PointListViewModel = hiltViewModel()) {
 
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    var showPointMenu by remember { mutableStateOf<Long?>(null) }
 
     fun resetEntryFields() {
         manualName=""; north=""; east=""; height=""; featureCode=""; desc=""; nameError=null
@@ -239,32 +242,47 @@ fun PointListScreen(vm: PointListViewModel = hiltViewModel()) {
                             DropdownMenuItem(text = { Text("CSV Paylaş (Metin)") }, onClick = {
                                 exportMenu=false
                                 if (filtered.isNotEmpty()) {
-                                    val points = if (selectionMode && selected.isNotEmpty()) filtered.filter { selected.contains(it.id) } else filtered
-                                    val csv = vm.buildCsv(points)
-                                    val send = Intent(Intent.ACTION_SEND).apply { type = "text/csv"; putExtra(Intent.EXTRA_TEXT, csv) }
-                                    Tugis3Application.appContext.startActivity(Intent.createChooser(send, "CSV Paylaş").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                                    scope.launch {
+                                        val points = if (selectionMode && selected.isNotEmpty()) filtered.filter { selected.contains(it.id) } else filtered
+                                        val large = points.size > 2000
+                                        if (large) { exportInProgress = true; exportProgressLabel = "CSV hazırlanıyor (${points.size})" }
+                                        val csv = withContext(Dispatchers.Default) { vm.buildCsv(points) }
+                                        val send = Intent(Intent.ACTION_SEND).apply { type = "text/csv"; putExtra(Intent.EXTRA_TEXT, csv) }
+                                        Tugis3Application.appContext.startActivity(Intent.createChooser(send, "CSV Paylaş").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                                        if (large) exportInProgress = false
+                                    }
                                 }
                             })
                             DropdownMenuItem(text = { Text("KML Paylaş (Metin)") }, onClick = {
                                 exportMenu=false
                                 if (filtered.isNotEmpty()) {
-                                    val points = if (selectionMode && selected.isNotEmpty()) filtered.filter { selected.contains(it.id) } else filtered
-                                    val kml = vm.buildKml(points, active?.name ?: "Points")
-                                    val needsWarn = points.any { it.latDeg == null || it.lonDeg == null }
-                                    val send = Intent(Intent.ACTION_SEND).apply { type = "application/vnd.google-earth.kml+xml"; putExtra(Intent.EXTRA_TEXT, kml) }
-                                    Tugis3Application.appContext.startActivity(Intent.createChooser(send, "KML Paylaş").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                                    if (needsWarn) scope.launch { snackbar.showSnackbar("Uyarı: KML için lat/lon yok, projeksiyon X/Y kullanıldı") }
+                                    scope.launch {
+                                        val points = if (selectionMode && selected.isNotEmpty()) filtered.filter { selected.contains(it.id) } else filtered
+                                        val large = points.size > 2000
+                                        if (large) { exportInProgress = true; exportProgressLabel = "KML hazırlanıyor (${points.size})" }
+                                        val kml = withContext(Dispatchers.Default) { vm.buildKml(points, active?.name ?: "Points") }
+                                        val needsWarn = points.any { it.latDeg == null || it.lonDeg == null }
+                                        val send = Intent(Intent.ACTION_SEND).apply { type = "application/vnd.google-earth.kml+xml"; putExtra(Intent.EXTRA_TEXT, kml) }
+                                        Tugis3Application.appContext.startActivity(Intent.createChooser(send, "KML Paylaş").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                                        if (needsWarn) scope.launch { snackbar.showSnackbar("Uyarı: KML için lat/lon yok, projeksiyon X/Y kullanıldı") }
+                                        if (large) exportInProgress = false
+                                    }
                                 }
                             })
                             DropdownMenuItem(text = { Text("GeoJSON Paylaş (Metin)") }, onClick = {
                                 exportMenu=false
                                 if (filtered.isNotEmpty()) {
-                                    val points = if (selectionMode && selected.isNotEmpty()) filtered.filter { selected.contains(it.id) } else filtered
-                                    val geo = vm.buildGeoJson(points)
-                                    val needsWarn = points.any { it.latDeg == null || it.lonDeg == null }
-                                    val send = Intent(Intent.ACTION_SEND).apply { type = "application/geo+json"; putExtra(Intent.EXTRA_TEXT, geo) }
-                                    Tugis3Application.appContext.startActivity(Intent.createChooser(send, "GeoJSON Paylaş").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                                    if (needsWarn) scope.launch { snackbar.showSnackbar("Uyarı: GeoJSON için lat/lon yok, projeksiyon X/Y kullanıldı") }
+                                    scope.launch {
+                                        val points = if (selectionMode && selected.isNotEmpty()) filtered.filter { selected.contains(it.id) } else filtered
+                                        val large = points.size > 2000
+                                        if (large) { exportInProgress = true; exportProgressLabel = "GeoJSON hazırlanıyor (${points.size})" }
+                                        val geo = withContext(Dispatchers.Default) { vm.buildGeoJson(points) }
+                                        val needsWarn = points.any { it.latDeg == null || it.lonDeg == null }
+                                        val send = Intent(Intent.ACTION_SEND).apply { type = "application/geo+json"; putExtra(Intent.EXTRA_TEXT, geo) }
+                                        Tugis3Application.appContext.startActivity(Intent.createChooser(send, "GeoJSON Paylaş").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                                        if (needsWarn) scope.launch { snackbar.showSnackbar("Uyarı: GeoJSON için lat/lon yok, projeksiyon X/Y kullanıldı") }
+                                        if (large) exportInProgress = false
+                                    }
                                 }
                             })
                             DropdownMenuItem(text = { Text("Dosya Olarak Paylaş") }, onClick = {
@@ -415,7 +433,7 @@ fun PointListScreen(vm: PointListViewModel = hiltViewModel()) {
                                                 if (isSel) selected.remove(p.id) else selected.add(p.id)
                                                 if (selected.isEmpty()) selectionMode = false
                                             } else {
-                                                showEdit = p.id
+                                                showPointMenu = p.id // Menü açılacak
                                             }
                                         },
                                         onLongClick = {
@@ -464,6 +482,74 @@ fun PointListScreen(vm: PointListViewModel = hiltViewModel()) {
                     }
                 }
             }
+        }
+    }
+
+    // Nokta menüsü (bottom sheet veya dialog)
+    showPointMenu?.let { pointId ->
+        val point = filtered.firstOrNull { it.id == pointId }
+        if (point != null) {
+            val context = LocalContext.current
+            AlertDialog(
+                onDismissRequest = { showPointMenu = null },
+                title = { Text("Nokta Seçenekleri") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(point.name)
+                        Text("N: ${point.northing}  E: ${point.easting}")
+                    }
+                },
+                confirmButton = {
+                    Column {
+                        TextButton(onClick = {
+                            showPointMenu = null
+                            val intent = Intent(context, AplikasyonActivity::class.java).apply {
+                                putExtra("northing", point.northing)
+                                putExtra("easting", point.easting)
+                                putExtra("height", point.ellipsoidalHeight ?: 0.0)
+                                putExtra("name", point.name)
+                                // Mevcutsa doğrudan enlem/boylamı da gönder (en doğru sonuç için)
+                                point.latDeg?.let { putExtra("latDeg", it) }
+                                point.lonDeg?.let { putExtra("lonDeg", it) }
+                                // Aktif projenin koordinat sistemi bilgilerini de aktar (UTM/EPSG ve TM/DOM)
+                                active?.let { ap ->
+                                    ap.epsgCode?.let { putExtra("epsgCode", it) }
+                                    ap.utmZone?.let { putExtra("utmZone", it) }
+                                    putExtra("utmNorthHemisphere", ap.utmNorthHemisphere)
+                                    // TM (Gauss-Krüger) parametreleri - DOM 30 gibi durumlar için
+                                    // Not: projectionType kontrolüne bağlı kalmadan mevcut parametreleri gönder
+                                    ap.projCentralMeridianDeg?.let { putExtra("tm_centralMeridianDeg", it) }
+                                    ap.projLatOrigin?.let { putExtra("tm_latOriginDeg", it) }
+                                    ap.projScaleFactor?.let { putExtra("tm_scaleFactor", it) }
+                                    ap.projFalseEasting?.let { putExtra("tm_falseE", it) }
+                                    ap.projFalseNorthing?.let { putExtra("tm_falseN", it) }
+                                    // Elipsoid parametreleri (ör. GRS80/WGS84)
+                                    ap.semiMajorA?.let { putExtra("semiMajorA", it) }
+                                    ap.invFlattening?.let { putExtra("invFlattening", it) }
+                                }
+                                // Hızlı seçim için mevcut listeden ilk 1000 noktayı JSON ekle
+                                val navPoints = (if (selectionMode && selected.isNotEmpty()) filtered.filter { selected.contains(it.id) } else filtered)
+                                    .take(1000)
+                                    .map { p -> mapOf(
+                                        "id" to p.id,
+                                        "name" to p.name,
+                                        "e" to p.easting,
+                                        "n" to p.northing,
+                                        "lat" to p.latDeg,
+                                        "lon" to p.lonDeg
+                                    ) }
+                                putExtra("pointListJson", com.google.gson.Gson().toJson(navPoints))
+                            }
+                            context.startActivity(intent)
+                        }) { Text("Aplikasyon") }
+                        TextButton(onClick = {
+                            showEdit = pointId
+                            showPointMenu = null
+                        }) { Text("Düzenle") }
+                        TextButton(onClick = { showPointMenu = null }) { Text("Kapat") }
+                    }
+                }
+            )
         }
     }
 }
